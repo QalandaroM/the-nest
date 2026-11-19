@@ -49,9 +49,9 @@ local Config = {
 	FOG_END = 220, -- на каком расстоянии всё тонет в тьме (studs)
 
 	-- Фонарик выжившего (слабый: только чтобы видеть)
-	FLASHLIGHT_BRIGHTNESS = 1.5,
-	FLASHLIGHT_RANGE = 30, -- дальность луча (studs)
-	FLASHLIGHT_ANGLE = 55, -- ширина луча (градусы)
+	FLASHLIGHT_BRIGHTNESS = 5, -- было 1.5: слишком темно, не видно дороги
+	FLASHLIGHT_RANGE = 55, -- дальность луча (studs), было 30
+	FLASHLIGHT_ANGLE = 65, -- ширина луча (градусы), было 55
 	FLASHLIGHT_BATTERY_TIME = 400, -- сколько секунд горит полный заряд
 	CHARGE_TIME_POWERED = 25, -- зарядка 0 → 100% у проводки, если щиток починен (сек)
 	CHARGE_TIME_UNPOWERED = 90, -- то же, если щиток сломан (сек)
