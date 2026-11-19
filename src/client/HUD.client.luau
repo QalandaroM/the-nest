@@ -57,3 +57,52 @@ local function showRole()
 end
 
 player:GetAttributeChangedSignal("Role"):Connect(showRole)
+
+-- Внизу слева: батарея фонарика, ключ, щиток
+local info = Instance.new("TextLabel")
+info.Size = UDim2.new(0, 320, 0, 90)
+info.Position = UDim2.new(0, 16, 1, -110)
+info.BackgroundTransparency = 1
+info.TextColor3 = Color3.fromRGB(225, 215, 190)
+info.TextStrokeTransparency = 0.5
+info.TextXAlignment = Enum.TextXAlignment.Left
+info.TextYAlignment = Enum.TextYAlignment.Bottom
+info.Font = Enum.Font.GothamMedium
+info.TextSize = 20
+info.RichText = true
+info.Parent = gui
+
+local function findFlashlight(): Tool?
+	local character = player.Character
+	local tool = character and character:FindFirstChild("Flashlight")
+	if not tool then
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		tool = backpack and backpack:FindFirstChild("Flashlight")
+	end
+	return tool :: Tool?
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		local lines = {}
+		local tool = findFlashlight()
+		if tool then
+			local battery = math.floor((tool:GetAttribute("Battery") :: number?) or 0)
+			local color = battery > 40 and "#c8e6a0" or (battery > 15 and "#e6c878" or "#e67a64")
+			local text = `Фонарик: <font color="{color}">{battery}%</font>`
+			if player:GetAttribute("Charging") then
+				text ..= workspace:GetAttribute("Power") and "  ⚡ зарядка" or "  ⚡ медленная зарядка (щиток сломан)"
+			end
+			table.insert(lines, text)
+		end
+		if player:GetAttribute("HasKey") then
+			table.insert(lines, "У тебя ключ от подвала")
+		end
+		if workspace:GetAttribute("RoundActive") and player:GetAttribute("Role") then
+			local p = workspace:GetAttribute("PanelProgress") or 0
+			table.insert(lines, workspace:GetAttribute("Power") and `Свет: есть (щиток {p}%)` or `Свет: нет (щиток {p}%)`)
+		end
+		info.Text = table.concat(lines, "\n")
+	end
+end)

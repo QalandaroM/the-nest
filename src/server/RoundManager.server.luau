@@ -1,5 +1,6 @@
 -- Управляет раундами: ждёт игроков, выбирает монстра, считает время.
 -- В Workspace поставьте две детали (Part): MonsterSpawn и SurvivorSpawn.
+-- Атрибут workspace.RoundActive = true, пока идёт раунд.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -80,6 +81,9 @@ while true do
 		end
 	end
 
+	-- Другие скрипты (щиток, ключ, двери) слушают этот атрибут
+	workspace:SetAttribute("RoundActive", true)
+
 	-- 4. Раунд идёт, пока есть выжившие, монстр и время
 	local timeLeft = Config.ROUND_TIME
 	while timeLeft > 0 and countRole("Survivor") > 0 and countRole("Monster") > 0 do
@@ -87,6 +91,8 @@ while true do
 		task.wait(1)
 		timeLeft -= 1
 	end
+
+	workspace:SetAttribute("RoundActive", false)
 
 	-- 5. Итог
 	if countRole("Monster") == 0 then

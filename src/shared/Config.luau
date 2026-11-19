@@ -13,6 +13,7 @@ local Config = {
 
 	-- Темнота
 	DARK_AMBIENT = Color3.fromRGB(6, 6, 10), -- почти чёрный фоновый свет
+	NIGHT_TIME = 21.5, -- время суток (21:30 — луна видна над лесом)
 	MOON_AMBIENT = Color3.fromRGB(95, 105, 140), -- лунный свет на улице (внутри дома его нет)
 	MOON_BRIGHTNESS = 2, -- сила луны (светит в окна, даёт тени)
 	FOG_COLOR = Color3.fromRGB(8, 10, 16), -- тёмно-синий ночной туман
@@ -22,6 +23,25 @@ local Config = {
 	FLASHLIGHT_BRIGHTNESS = 1.5,
 	FLASHLIGHT_RANGE = 30, -- дальность луча (studs)
 	FLASHLIGHT_ANGLE = 55, -- ширина луча (градусы)
+	FLASHLIGHT_BATTERY_TIME = 400, -- сколько секунд горит полный заряд
+	CHARGE_TIME_POWERED = 25, -- зарядка 0 → 100% у проводки, если щиток починен (сек)
+	CHARGE_TIME_UNPOWERED = 90, -- то же, если щиток сломан (сек)
+
+	-- Уличный щиток
+	PANEL_REPAIR_TICK = 0.25, -- как часто растёт починка (сек)
+	PANEL_REPAIR_MIN = 1, -- сколько % добавляется за тик (случайно от MIN до MAX)
+	PANEL_REPAIR_MAX = 3,
+	PANEL_HITS_TO_BREAK = 6, -- ударов монстра, чтобы сломать целый щиток (1 удар = 100/6 %)
+	PANEL_MONSTER_COOLDOWN = 10, -- задержка между ударами монстра по щитку (сек)
+	PANEL_LIGHT_SCALE = 0.45, -- насколько тусклый свет в доме от щитка (1 = полный)
+
+	-- Удары монстра по игрокам (пригодится в пункте «Удары монстра»)
+	MONSTER_HIT_COOLDOWN_MIN = 2,
+	MONSTER_HIT_COOLDOWN_MAX = 3,
+
+	-- Звуки
+	CREAK_CHANCE = 0.18, -- шанс скрипа пола за один шаг-проверку (0.4 сек)
+	DOOR_OPEN_ANGLE = 95, -- на сколько градусов открывается дверь
 }
 
 return Config

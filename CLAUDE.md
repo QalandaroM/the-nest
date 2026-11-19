@@ -34,9 +34,14 @@ docs/         → не синхронизируется (сюжет, описа�
 ```
 - `src/shared/Config.luau` — все числа игры. Новые настройки добавляй **туда**, не хардкодь цифры.
 - `src/server/RoundManager.server.luau` — цикл раундов и выбор монстра.
-- `src/client/HUD.client.luau` — статус раунда и надпись с ролью.
-- `tools/MapBuilder.luau` — строит карту «Дом Хейлов» в Studio: `require(game.ServerStorage.Tools.MapBuilder:Clone()).build()` в Command Bar.
-- `docs/STORY.md` — сюжет, комнаты, где тайники и предохранители.
+- `src/client/HUD.client.luau` — статус раунда, роль, батарея фонарика, ключ, состояние щитка.
+- `src/shared/Sounds.luau` — ID всех звуков (Pro Sound Effects из Creator Store).
+- Сервер: `Doors` (двери по E), `BasementKey` (ключ и запертая дверь в подвал), `PowerPanel` (уличный щиток и свет), `Flashlight` (батарея и зарядка), `FloorCreaks` (скрип пола), `Darkness` (ночь).
+- Клиент: `Prompts` (показывает подсказки E только нужной роли), `Ambience` (фоновые звуки).
+- `tools/MapBuilder/` — строит карту «Дом Хейлов» в Studio: `require(game.ServerStorage.Tools.MapBuilder:Clone()).build()` в Command Bar. Модели Toolbox — в `Assets.luau`, из них вырезаются все скрипты.
+- `tools/Preview.luau` — посмотреть карту ночью в режиме редактирования.
+- `docs/STORY.md` — сюжет, комнаты, где тайники, предохранители, ключ.
+- Атрибуты: `workspace.RoundActive`, `workspace.Power`, `workspace.PanelProgress`; у игрока `HasKey`, `Charging`; у фонарика `Battery`.
 
 **Карта строится скриптом `MapBuilder` один раз в Studio и сохраняется в `.rbxl` (в Git — только скрипт).**
 Код должен находить объекты карты по имени и спокойно работать, если их нет (`FindFirstChild` + проверка).

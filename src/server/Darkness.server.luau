@@ -5,7 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
-Lighting.ClockTime = 0 -- полночь
+Lighting.ClockTime = Config.NIGHT_TIME -- ночь, луна над лесом
 Lighting.Brightness = Config.MOON_BRIGHTNESS -- ночью это свет луны
 Lighting.Ambient = Config.DARK_AMBIENT
 Lighting.OutdoorAmbient = Config.MOON_AMBIENT -- снаружи слабая луна, внутри дома темно
