@@ -24,10 +24,16 @@ local function setBright(on: boolean)
 			Ambient = Lighting.Ambient,
 			OutdoorAmbient = Lighting.OutdoorAmbient,
 			ExposureCompensation = Lighting.ExposureCompensation,
+			ClockTime = Lighting.ClockTime,
+			Brightness = Lighting.Brightness,
+			FogEnd = Lighting.FogEnd,
 		}
 		Lighting.Ambient = Config.THIRD_PERSON_AMBIENT
-		Lighting.OutdoorAmbient = Config.THIRD_PERSON_AMBIENT:Lerp(Color3.new(1, 1, 1), 0.2)
+		Lighting.OutdoorAmbient = Config.THIRD_PERSON_AMBIENT
 		Lighting.ExposureCompensation = Config.THIRD_PERSON_EXPOSURE
+		Lighting.ClockTime = Config.THIRD_PERSON_CLOCK
+		Lighting.Brightness = 2.5
+		Lighting.FogEnd = Config.THIRD_PERSON_FOG_END
 	elseif not on and saved then
 		for key, value in saved do
 			(Lighting :: any)[key] = value
