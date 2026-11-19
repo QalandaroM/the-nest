@@ -32,6 +32,41 @@ local Sounds = {
 	PowerHum = "rbxassetid://9112889082", -- гул трансформатора (петля)
 	ChargeHum = "rbxassetid://9125784811",
 
+	-- Удары монстра и раны
+	ClawSwing = {
+		"rbxassetid://9120972321",
+		"rbxassetid://9120972444",
+		"rbxassetid://9120972323",
+	},
+	ClawHit = {
+		"rbxassetid://9114487556",
+		"rbxassetid://9114487557",
+	},
+	ClawDeep = "rbxassetid://9119229504", -- влажный шлепок
+	BoneBreak = {
+		"rbxassetid://9113734643",
+		"rbxassetid://9113734648",
+	},
+	PainScream = {
+		"rbxassetid://9116455473",
+		"rbxassetid://9116454870",
+		"rbxassetid://9116454961",
+		"rbxassetid://9116455270",
+		"rbxassetid://9116455235",
+	},
+	BloodDrip = {
+		"rbxassetid://9113464190",
+		"rbxassetid://9113464198",
+		"rbxassetid://9113463758",
+	},
+	BandageWrap = {
+		"rbxassetid://9113837941",
+		"rbxassetid://9113837840",
+		"rbxassetid://9113837853",
+	},
+	BandageRip = "rbxassetid://9113836687",
+	BandagePickup = "rbxassetid://9113837823",
+
 	-- Атмосфера
 	Crickets = "rbxassetid://9112764573",
 	IndoorWind = "rbxassetid://9118747525",

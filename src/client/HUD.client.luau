@@ -60,8 +60,8 @@ player:GetAttributeChangedSignal("Role"):Connect(showRole)
 
 -- Внизу слева: батарея фонарика, ключ, щиток
 local info = Instance.new("TextLabel")
-info.Size = UDim2.new(0, 320, 0, 90)
-info.Position = UDim2.new(0, 16, 1, -110)
+info.Size = UDim2.new(0, 360, 0, 260)
+info.Position = UDim2.new(0, 16, 1, -280)
 info.BackgroundTransparency = 1
 info.TextColor3 = Color3.fromRGB(225, 215, 190)
 info.TextStrokeTransparency = 0.5
@@ -86,6 +86,41 @@ task.spawn(function()
 	while true do
 		task.wait(0.25)
 		local lines = {}
+		local role = player:GetAttribute("Role")
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+
+		-- Здоровье и раны выжившего
+		if role == "Survivor" and humanoid then
+			local hp = math.max(0, math.ceil(humanoid.Health))
+			local color = hp > 60 and "#c8e6a0" or (hp > 30 and "#e6c878" or "#e67a64")
+			local hpText = `Здоровье: <font color="{color}">{hp}</font>`
+			if (player:GetAttribute("Bleeding") or 0) > 0 then
+				hpText ..= `  <font color="#d04040">🩸 кровотечение</font>`
+			end
+			if player:GetAttribute("Bandaging") then
+				hpText ..= "  перевязываешься…"
+			end
+			table.insert(lines, hpText)
+			local wounds = player:GetAttribute("WoundsText")
+			if wounds and wounds ~= "" then
+				table.insert(lines, `<font size="16" color="#c8a8a0">{wounds}</font>`)
+			end
+			local bandages = player:GetAttribute("Bandages") or 0
+			if bandages > 0 then
+				table.insert(lines, `Бинтов: {bandages}`)
+			end
+		end
+
+		-- Перезарядка когтей монстра
+		if role == "Monster" then
+			local left = (player:GetAttribute("ClawReadyAt") or 0) - workspace:GetServerTimeNow()
+			if left > 0 then
+				table.insert(lines, `Когти: {string.format("%.1f", left)} сек`)
+			else
+				table.insert(lines, `Когти: <font color="#e67a64">готовы</font>`)
+			end
+		end
+
 		local tool = findFlashlight()
 		if tool then
 			local battery = math.floor((tool:GetAttribute("Battery") :: number?) or 0)

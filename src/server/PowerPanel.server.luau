@@ -266,8 +266,13 @@ task.spawn(function()
 		task.wait(Config.PANEL_REPAIR_TICK)
 		local changed = false
 		for player in repairing do
-			if isAliveWithRole(player, "Survivor") and closeEnough(player, 9) and progress < 100 then
-				progress = math.min(100, progress + rng:NextInteger(Config.PANEL_REPAIR_MIN, Config.PANEL_REPAIR_MAX))
+			local armsLost = player:GetAttribute("ArmsLost") or 0
+			if isAliveWithRole(player, "Survivor") and closeEnough(player, 9) and progress < 100 and armsLost < 2 then
+				local amount = rng:NextInteger(Config.PANEL_REPAIR_MIN, Config.PANEL_REPAIR_MAX)
+				if armsLost == 1 then
+					amount = math.ceil(amount / Config.ONE_ARM_SLOWDOWN) -- одной рукой чинить медленнее
+				end
+				progress = math.min(100, progress + amount)
 				changed = true
 			else
 				repairing[player] = nil

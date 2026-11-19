@@ -9,6 +9,7 @@
 --   Decor     — гниль, паутина, слизь, свечи
 --   Furniture — мебель (Toolbox или из деталей)
 --   House / Basement / Exterior — сами части карты
+--   Pickups   — точки для бинтов
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
@@ -17,10 +18,11 @@ local Assets = require(script.Assets)
 local House = require(script.House)
 local Basement = require(script.Basement)
 local Exterior = require(script.Exterior)
+local Pickups = require(script.Pickups)
 
 local MapBuilder = {}
 
-local OLD = { "Map", "Hideouts", "Fuses", "KeySpawns", "MonsterSpawn", "SurvivorSpawn", "LobbySpawn", "Baseplate", "BasementKey" }
+local OLD = { "Map", "Hideouts", "Fuses", "KeySpawns", "MonsterSpawn", "SurvivorSpawn", "LobbySpawn", "Baseplate", "BasementKey", "BandageSpawns", "Bandages" }
 
 local function clearOld()
 	for _, name in OLD do
@@ -53,6 +55,7 @@ function MapBuilder.build(): string
 	Exterior.build(map, ctx)
 	House.build(map, ctx)
 	Basement.build(map, ctx)
+	Pickups.build()
 
 	if recording then
 		pcall(function()
