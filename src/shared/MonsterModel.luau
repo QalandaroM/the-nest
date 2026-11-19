@@ -25,6 +25,11 @@ local EYE = Color3.fromRGB(255, 40, 20)
 
 local SMOOTH = Enum.Material.SmoothPlastic
 local rng = Random.new(1989)
+local SLIME = Color3.fromRGB(52, 70, 30)
+local STRAND = Color3.fromRGB(20, 16, 14)
+
+-- Поза: монстр сутулый (как на виде сбоку). PRE — сдвиг/наклон для деталей текущей части тела.
+local PRE = CFrame.new()
 
 -- Деталь, приваренная к части тела. off — положение относительно этой части.
 -- shape: "ball" (эллипсоид), "cyl" (цилиндр по оси X), "wedge" (клин)
@@ -41,7 +46,7 @@ local function add(body: BasePart, folder: Instance, size: Vector3, off: CFrame,
 	p.Anchored = false
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.CFrame = body.CFrame * off
+	p.CFrame = body.CFrame * PRE * off
 	if shape == "ball" then
 		local mesh = Instance.new("SpecialMesh")
 		mesh.MeshType = Enum.MeshType.Sphere
@@ -188,6 +193,32 @@ local function chest(t: BasePart, f: Instance, top: number, h: number)
 			}, 0.14, 0.11, BONE)
 		end
 	end
+	-- слизь и тёмные нити свисают с рёбер
+	for i = 1, 6 do
+		local x = rng:NextNumber(-sx * 0.4, sx * 0.4)
+		local len = rng:NextNumber(0.4, 1.1)
+		local y = top - rng:NextNumber(0, h * 0.4)
+		add(t, f, Vector3.new(0.06, len, 0.06), CFrame.new(x, y - len / 2, -sz * 0.5), i % 2 == 0 and SLIME or STRAND, i % 2 == 0 and Enum.Material.Glass or SMOOTH)
+		if i % 2 == 0 then
+			add(t, f, Vector3.new(0.13, 0.16, 0.13), CFrame.new(x, y - len, -sz * 0.5), SLIME, Enum.Material.Glass, "ball")
+		end
+	end
+	-- мухи вьются вокруг
+	local flies = Instance.new("Attachment")
+	flies.Name = "Flies"
+	flies.Position = Vector3.new(0, top + h * 0.4, 0)
+	flies.Parent = t
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(Color3.fromRGB(10, 10, 10))
+	emitter.LightInfluence = 1
+	emitter.Size = NumberSequence.new(0.09)
+	emitter.Lifetime = NumberRange.new(1.5, 3)
+	emitter.Rate = 6
+	emitter.Speed = NumberRange.new(1, 2.5)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Drag = 1.5
+	emitter.Acceleration = Vector3.new(0, 0.3, 0)
+	emitter.Parent = flies
 	-- грудина
 	seg(t, f, Vector3.new(0, top + h * 0.45, -sz * 0.52), Vector3.new(0, top - h * 0.25, -sz * 0.5), 0.16, BONE_DARK)
 	-- позвоночник: от шеи до таза, сзади хорошо виден
@@ -203,6 +234,10 @@ local function chest(t: BasePart, f: Instance, top: number, h: number)
 		add(t, f, Vector3.new(1.0, 0.7, 1.1), sh * CFrame.new(side * -0.35, -0.25, 0.3), MOSS_DARK, Enum.Material.Grass, "ball")
 		add(t, f, Vector3.new(0.8, 0.5, 0.8), sh * CFrame.new(side * 0.25, 0.3, -0.2), MOSS_DARK, Enum.Material.Grass, "ball")
 		smallSkull(t, f, sh * CFrame.new(side * 0.1, 0.3, -0.5), 0.55)
+		for k = 0, 2 do
+			local len = rng:NextNumber(0.7, 1.4)
+			add(t, f, Vector3.new(0.05, len, 0.05), sh * CFrame.new(side * (0.2 + k * 0.15), -0.35 - len / 2, -0.3 + k * 0.3) * CFrame.Angles(0, 0, side * 0.1), STRAND, SMOOTH)
+		end
 		smallSkull(t, f, sh * CFrame.new(side * 0.1, 0.2, 0.6) * CFrame.Angles(0, math.pi, 0), 0.45)
 		for k = 0, 4 do
 			local base = Vector3.new(side * (sx * 0.45 + 0.25), top + h * 0.5 + 0.2, -0.5 + k * 0.25)
@@ -226,11 +261,11 @@ local function hips(t: BasePart, f: Instance, y: number)
 	add(t, f, Vector3.new(sx * 0.75, 0.18, sz * 0.75), CFrame.new(0, y + 0.1, 0), BARK_DARK, Enum.Material.Fabric)
 	-- набедренная повязка: передний и задний лоскут с рваным краем
 	for _, zs in { -1, 1 } do
-		local flapW, flapH = sx * 0.6, 0.75
+		local flapW, flapH = sx * 0.62, 1.15
 		add(t, f, Vector3.new(flapW, flapH, 0.05), CFrame.new(0, y - flapH / 2, zs * sz * 0.4) * CFrame.Angles(zs * -0.12, 0, 0), CLOTH, Enum.Material.Fabric)
 		for i = 0, 4 do
 			local x = -flapW / 2 + (i + 0.5) * flapW / 5
-			local len = rng:NextNumber(0.15, 0.55)
+			local len = rng:NextNumber(0.3, 0.9)
 			add(t, f, Vector3.new(flapW / 5 - 0.03, len, 0.045), CFrame.new(x, y - flapH - len / 2 + 0.05, zs * (sz * 0.4 + 0.09)) * CFrame.Angles(zs * -0.12, 0, rng:NextNumber(-0.12, 0.12)), CLOTH, Enum.Material.Fabric)
 		end
 	end
@@ -328,17 +363,26 @@ function MonsterModel.dress(character: Model)
 	end
 	local h = part("Head")
 	if h then
+		PRE = CFrame.new(0, -0.3, -0.65) * CFrame.Angles(math.rad(-10), 0, 0)
 		head(h, f)
+		PRE = CFrame.new()
 	end
 	local upper, lower, torso = part("UpperTorso"), part("LowerTorso"), part("Torso")
 	if upper then
+		-- наклон груди вперёд вокруг поясницы
+		local half = upper.Size.Y / 2
+		PRE = CFrame.new(0, -half, 0) * CFrame.Angles(math.rad(-16), 0, 0) * CFrame.new(0, half, 0)
 		chest(upper, f, 0.05, upper.Size.Y * 0.95)
+		PRE = CFrame.new()
 	end
 	if lower then
 		hips(lower, f, 0)
 	end
 	if torso then -- R6: рёбра в верхних 2/3 торса, ниже — позвоночник и таз
+		local half = torso.Size.Y / 2
+		PRE = CFrame.new(0, -half * 0.3, 0) * CFrame.Angles(math.rad(-16), 0, 0) * CFrame.new(0, half * 0.3, 0)
 		chest(torso, f, torso.Size.Y * 0.18, torso.Size.Y * 0.6)
+		PRE = CFrame.new()
 		hips(torso, f, -torso.Size.Y * 0.42)
 	end
 	for _, sideName in { "Left", "Right" } do

@@ -1,6 +1,6 @@
 -- Тихая, давящая музыка во время раунда.
 -- Слои: 1) фоновый трек (Sounds.MusicTrack), громкость медленно «дышит» — то накатывает, то оседает;
---       2) низкий гул (тот же гул трансформатора, сильно замедленный) — играет, даже если трек не загрузился;
+--       2) низкий гул и далёкий хор со стоном (Sounds.MusicAmbience) — играют, даже если трек не загрузился;
 --       3) когда монстр рядом (для выжившего) — всё громче и выше, и стучит сердце.
 --       Иногда в тишине — низкий стон, будто дом оседает.
 -- Музыку слышит только этот игрок.
@@ -27,7 +27,7 @@ end
 
 local track = loop(Sounds.MusicTrack, 1)
 local drone = loop(Sounds.PowerHum, 0.32)
-local wind = loop(Sounds.IndoorWind, 0.45)
+local wind = loop(Sounds.MusicAmbience, 0.8) -- далёкий хор и стон, замедленный — «оседает»
 local heart = loop(Sounds.Heartbeat, 1)
 
 local playing = false
@@ -96,7 +96,7 @@ task.spawn(function()
 			local base = Config.MUSIC_VOLUME
 			approach(track, base * swell + level * 0.18, 0.08)
 			approach(drone, 0.05 + level * 0.12, 0.08)
-			approach(wind, 0.03 * swell, 0.05)
+			approach(wind, 0.12 * (1.3 - swell) + level * 0.05, 0.05) -- хор накатывает, когда музыка затихает
 			approach(heart, level * 0.55, 0.15)
 			drone.PlaybackSpeed = 0.32 + level * 0.12
 			track.PlaybackSpeed = 1 + level * 0.04

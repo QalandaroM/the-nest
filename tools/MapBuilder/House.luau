@@ -190,7 +190,7 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	else
 		Kit.box(hall, -0.08, TOP - 1, -12.08, 0.08, TOP, -11.92, Color3.fromRGB(20, 20, 20), M.smooth, { CanCollide = false })
 	end
-	F.prop(hall, "clock", at(-12.6, G, -28, PX))
+	F.grandfatherClock(hall, at(-12.7, G, -28, PX)) -- свои часы с маятником (Toolbox-часы выглядели криво)
 	F.prop(hall, "painting", at(-13.3, G + 6, -14, PX), 4.5)
 	F.table(hall, at(-11.5, G, -6, PX), 3, 2, 3)
 	Decor.candle(hall, Vector3.new(-11.5, G + 3, -6), true)

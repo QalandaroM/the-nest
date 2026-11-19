@@ -94,16 +94,20 @@ local Sounds = {
 	DistantScream = "rbxassetid://9125438052",
 	HouseSettle = "rbxassetid://9120862369",
 
-	-- Скример с летучими мышами.
-	-- ВНИМАНИЕ: проверенного ID писка/хлопанья крыльев у нас пока нет. Найдите в Creator Store
-	-- (Toolbox → Audio → «bat» или «wings flap») и вставьте сюда ID, например "rbxassetid://123".
-	-- Пока здесь пусто, Bats.client.luau собирает звук стаи из свиста когтей и крика.
-	BatSwarm = "",
+	-- Скример с летучими мышами (Pro Sound Effects, Creator Store)
+	BatWings = {
+		"rbxassetid://9113992822", -- Creature Wings, Flaps, Bat or Flying Insect (4.4 сек)
+		"rbxassetid://9113993281", -- то же, 3.9 сек
+		"rbxassetid://9113993390", -- то же, 2.5 сек
+	},
+	BatScreech = {
+		"rbxassetid://9116952746", -- очень высокий писк и визг (играем ещё выше — как летучие мыши)
+		"rbxassetid://9118851469", -- Screechy Shrieks
+	},
 
-	-- Тихая фоновая музыка во время раунда (Music.client.luau).
-	-- ID взят из подборок хоррор-музыки (APM) и НЕ проверен — если в Output ошибка загрузки,
-	-- замените ID. Если трек не грузится, музыка играет из гула и ветра.
-	MusicTrack = "rbxassetid://1835261249",
+	-- Тихая страшная музыка во время раунда (Music.client.luau)
+	MusicTrack = "rbxassetid://1837606919", -- «Deadhead», Richard Brown (APM Music, Sound Design)
+	MusicAmbience = "rbxassetid://9114228928", -- Eerie Wind: далёкий хор и стон, петля (Pro Sound Effects)
 }
 
 return Sounds

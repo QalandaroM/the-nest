@@ -44,7 +44,7 @@ local function makeBat(): (Model, BasePart, BasePart, BasePart, BasePart)
 	return m, body, left, right, eyes
 end
 
--- Звук стаи. Если ID писка не задан — собираем из свиста и крика с высоким тоном
+-- Звук стаи: хлопанье крыльев + писк (ID в Sounds.BatWings / BatScreech)
 local function swarmSound(parent: Instance, loud: boolean)
 	local function play(id: string, volume: number, speed: number)
 		local s = Instance.new("Sound")
@@ -59,23 +59,19 @@ local function swarmSound(parent: Instance, loud: boolean)
 		end)
 	end
 	local v = loud and 1 or 0.5
-	if Sounds.BatSwarm ~= "" then
-		play(Sounds.BatSwarm, v, 1)
-	else
-		-- хлопанье крыльев: много быстрых свистов
-		for i = 1, 9 do
-			task.delay(i * 0.09, function()
-				local swing = Sounds.ClawSwing
-				play(swing[rng:NextInteger(1, #swing)], 0.35 * v, rng:NextNumber(2.2, 3))
-			end)
-		end
-		-- писк: крик, разогнанный до высокого тона
-		local scream = Sounds.PainScream
-		play(scream[rng:NextInteger(1, #scream)], 0.45 * v, 3.2)
-		task.delay(0.25, function()
-			play(scream[rng:NextInteger(1, #scream)], 0.3 * v, 3.6)
+	-- хлопанье крыльев: три записи крыльев сразу, с разным тоном — получается стая
+	local wings = Sounds.BatWings
+	for i = 1, 3 do
+		task.delay((i - 1) * 0.12, function()
+			play(wings[rng:NextInteger(1, #wings)], 0.7 * v, rng:NextNumber(1.1, 1.5))
 		end)
 	end
+	-- писк: высокий визг, разогнанный ещё выше
+	local screech = Sounds.BatScreech
+	play(screech[1], 0.55 * v, rng:NextNumber(1.5, 1.8))
+	task.delay(0.3, function()
+		play(screech[rng:NextInteger(1, #screech)], 0.4 * v, rng:NextNumber(1.9, 2.3))
+	end)
 end
 
 -- Чёрные крылья на весь экран на долю секунды

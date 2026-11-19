@@ -11,7 +11,7 @@ local TalismanModel = {}
 
 local SILVER = Color3.fromRGB(176, 176, 168)
 local SILVER_DARK = Color3.fromRGB(92, 92, 88)
-local GARNET = Color3.fromRGB(120, 8, 14)
+local GARNET = Color3.fromRGB(105, 4, 10)
 local GLOW = Color3.fromRGB(255, 40, 30)
 
 TalismanModel.NAMES = { Chain = "Цепочка", Stone = "Камень", Frame = "Оправа" }
@@ -73,12 +73,12 @@ function TalismanModel.build(cf: CFrame, which: { [string]: boolean }?, s: numbe
 	end
 
 	if w.Stone then
-		local stone = part(m, "Stone", Vector3.new(0.42, 0.5, 0.26) * k, cf * CFrame.new(0, 0, -0.1 * k), GARNET, Enum.Material.Glass)
+		local stone = part(m, "Stone", Vector3.new(0.42, 0.5, 0.26) * k, cf * CFrame.new(0, 0, -0.1 * k), GARNET, Enum.Material.SmoothPlastic)
 		local mesh = Instance.new("SpecialMesh")
 		mesh.MeshType = Enum.MeshType.Sphere
 		mesh.Parent = stone
-		stone.Reflectance = 0.25
-		local inner = part(m, "Ember", Vector3.new(0.16, 0.2, 0.1) * k, cf * CFrame.new(0, 0, -0.12 * k), GLOW, Enum.Material.Neon)
+		stone.Reflectance = 0.04
+		local inner = part(m, "Ember", Vector3.new(0.1, 0.13, 0.06) * k, cf * CFrame.new(-0.06 * k, 0.08 * k, -0.21 * k), GLOW, Enum.Material.Neon)
 		local mesh2 = mesh:Clone()
 		mesh2.Parent = inner
 		local light = Instance.new("PointLight")
@@ -92,20 +92,18 @@ function TalismanModel.build(cf: CFrame, which: { [string]: boolean }?, s: numbe
 	end
 
 	if w.Chain then
-		-- цепочка: звенья от петельки вверх двумя ветками, сходятся наверху
-		local top = Vector3.new(0, 2.0, 0.2) * k
-		for _, side in { -1, 1 } do
-			local a = Vector3.new(0, 0.8, 0) * k
-			local b = Vector3.new(side * 0.55, 1.45, 0.1) * k
-			local links = 7
-			for i = 0, links - 1 do
-				local t = i / links
-				-- квадратичная кривая a → b → top
-				local p = a:Lerp(b, t):Lerp(b:Lerp(top, t), t)
-				local link = part(m, "Link", Vector3.new(0.16, 0.06, 0.06) * k, cf * CFrame.new(p) * CFrame.Angles(i % 2 == 0 and 0 or math.pi / 2, 0, side * (0.9 - t)), SILVER, Enum.Material.Metal)
-				core = core or link
-			end
+		-- цепочка: петля из сцепленных колечек (каждое — кольцо из 6 кусочков),
+		-- соседние колечки повёрнуты на 90°, как у настоящей цепи
+		local count = 34
+		local rx, ry, cy = 0.55, 0.75, 1.55
+		for i = 0, count - 1 do
+			local ang = -math.pi / 2 + i / count * math.pi * 2
+			local pos = Vector3.new(rx * math.cos(ang), cy + ry * math.sin(ang), 0) * k
+			local tangent = Vector3.new(-rx * math.sin(ang), ry * math.cos(ang), 0).Unit
+			local frame = cf * CFrame.lookAt(pos, pos + tangent) * CFrame.Angles(0, 0, i % 2 == 0 and 0 or math.pi / 2) * CFrame.Angles(0, math.pi / 2, 0)
+			ring(m, 'Link', frame, 0.075 * k, 6, 0.03 * k, SILVER)
 		end
+		core = core or m:FindFirstChild('Link') :: Part
 	end
 
 	m.PrimaryPart = core

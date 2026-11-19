@@ -253,6 +253,57 @@ function F.barrel(parent: Instance, o: CFrame)
 	end)
 end
 
+-- Старинные напольные часы (свои, из деталей). Маятник качается и тикает —
+-- это делает клиент (Critters.client.luau, тег "Clock"). Стрелки застыли на 3:33.
+-- o — точка на полу, часы смотрят циферблатом в -Z (LookVector).
+function F.grandfatherClock(parent: Instance, o: CFrame): Model
+	local m = Instance.new("Model")
+	m.Name = "GrandfatherClock"
+	local wood, dark, brass = Color3.fromRGB(70, 40, 24), Color3.fromRGB(40, 24, 15), Color3.fromRGB(176, 138, 64)
+	local base = piece(m, o, Vector3.new(0, 0.6, 0), Vector3.new(2.4, 1.2, 1.5), dark, M.wood)
+	base.Name = "Base"
+	piece(m, o, Vector3.new(0, 3.7, 0.1), Vector3.new(1.9, 5, 1.2), wood, M.wood) -- корпус
+	piece(m, o, Vector3.new(0, 7.1, 0), Vector3.new(2.3, 2.2, 1.45), wood, M.wood) -- голова
+	piece(m, o, Vector3.new(0, 8.35, 0), Vector3.new(2.5, 0.3, 1.55), dark, M.wood)
+	piece(m, o, Vector3.new(0, 8.75, 0), Vector3.new(1.2, 0.5, 1.2), dark, M.wood) -- навершие
+	for _, x in { -1.05, 1.05 } do
+		piece(m, o, Vector3.new(x, 7.1, -0.75), Vector3.new(0.18, 2.2, 0.12), brass, M.metal) -- колонки
+	end
+	-- циферблат
+	local faceCF = o * CFrame.new(0, 7.1, -0.74)
+	cylinder(m, faceCF * CFrame.Angles(math.pi / 2, 0, 0), 0.06, 1.75, Color3.fromRGB(222, 212, 186), M.smooth, { CanCollide = false })
+	cylinder(m, faceCF * CFrame.new(0, 0, 0.03) * CFrame.Angles(math.pi / 2, 0, 0), 0.04, 1.95, brass, M.metal, { CanCollide = false })
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		newPart(m, Vector3.new(0.06, i % 3 == 0 and 0.22 or 0.12, 0.02), faceCF * CFrame.Angles(0, 0, -a) * CFrame.new(0, 0.7, -0.05), Color3.fromRGB(30, 26, 22), M.smooth, { CanCollide = false })
+	end
+	-- стрелки застыли на 3:33
+	newPart(m, Vector3.new(0.08, 0.45, 0.02), faceCF * CFrame.Angles(0, 0, math.rad(106)) * CFrame.new(0, 0.22, -0.07), Color3.fromRGB(20, 18, 16), M.metal, { CanCollide = false })
+	newPart(m, Vector3.new(0.05, 0.65, 0.02), faceCF * CFrame.Angles(0, 0, math.rad(198)) * CFrame.new(0, 0.32, -0.08), Color3.fromRGB(20, 18, 16), M.metal, { CanCollide = false })
+	-- окошко корпуса и маятник за ним
+	piece(m, o, Vector3.new(0, 3.9, -0.53), Vector3.new(1.3, 3.8, 0.04), Color3.fromRGB(14, 10, 8), M.smooth, { CanCollide = false }) -- тёмная глубина
+	piece(m, o, Vector3.new(0, 3.9, -0.72), Vector3.new(1.3, 3.8, 0.03), Color3.fromRGB(60, 66, 66), M.glass, { CanCollide = false, Transparency = 0.75 })
+	-- рамка окошка (коробка, в которой качается маятник)
+	for _, x in { -0.73, 0.73 } do
+		piece(m, o, Vector3.new(x, 3.9, -0.63), Vector3.new(0.16, 4.1, 0.26), dark, M.wood)
+	end
+	for _, y in { 1.92, 5.88 } do
+		piece(m, o, Vector3.new(0, y, -0.63), Vector3.new(1.62, 0.16, 0.26), dark, M.wood)
+	end
+	local pend = Instance.new("Model")
+	pend.Name = "Pendulum"
+	pend.Parent = m
+	local top = o * CFrame.new(0, 5.65, -0.62)
+	newPart(pend, Vector3.new(0.06, 2.9, 0.04), top * CFrame.new(0, -1.45, 0), brass, M.metal, { CanCollide = false })
+	cylinder(pend, top * CFrame.new(0, -2.95, 0) * CFrame.Angles(math.pi / 2, 0, 0), 0.08, 0.7, brass, M.metal, { CanCollide = false })
+	m:SetAttribute("PendulumTop", top.Position)
+	m:SetAttribute("Facing", o.LookVector)
+	m.PrimaryPart = base
+	Kit.tag(m, "Clock")
+	m.Parent = parent
+	return m
+end
+
 -- Декор без запасного варианта (если не загрузился — просто нет)
 function F.prop(parent: Instance, key: string, o: CFrame, height: number?, yaw: number?)
 	return Assets.place(parent, key, o, height, yaw)

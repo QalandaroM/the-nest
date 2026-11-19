@@ -103,3 +103,64 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 	end
 end)
+
+---------------------------------------------------------------------
+-- Напольные часы (тег "Clock"): маятник качается, часы тикают.
+-- Качаем только у ближайших к камере часов.
+---------------------------------------------------------------------
+local Sounds = require(ReplicatedStorage.Shared.Sounds)
+
+type Clock = { model: Model, top: Vector3, axis: Vector3, parts: { { part: BasePart, cf: CFrame } }, side: number, tick: Sound? }
+local clocks: { Clock } = {}
+
+local function addClock(model: Instance)
+	if not model:IsA("Model") then
+		return
+	end
+	local pend = model:FindFirstChild("Pendulum")
+	local top = model:GetAttribute("PendulumTop") :: Vector3?
+	local facing = model:GetAttribute("Facing") :: Vector3?
+	if not pend or not top or not facing then
+		return
+	end
+	local parts = {}
+	for _, p in pend:GetDescendants() do
+		if p:IsA("BasePart") then
+			table.insert(parts, { part = p, cf = p.CFrame })
+		end
+	end
+	local tickSound = Instance.new("Sound")
+	tickSound.SoundId = Sounds.FlashlightClick
+	tickSound.Volume = 0.25
+	tickSound.PlaybackSpeed = 0.55
+	tickSound.RollOffMaxDistance = 30
+	tickSound.Parent = model.PrimaryPart or parts[1] and parts[1].part
+	table.insert(clocks, { model = model, top = top, axis = facing.Unit, parts = parts, side = 1, tick = tickSound })
+end
+
+for _, m in CollectionService:GetTagged("Clock") do
+	addClock(m)
+end
+CollectionService:GetInstanceAddedSignal("Clock"):Connect(addClock)
+
+RunService.RenderStepped:Connect(function()
+	local camPos = workspace.CurrentCamera.CFrame.Position
+	local t = os.clock()
+	for _, c in clocks do
+		if c.model.Parent and (c.top - camPos).Magnitude < Config.SPIDER_VIEW_DISTANCE then
+			-- период 2 сек: тик на каждом крайнем положении
+			local angle = math.sin(t * math.pi) * math.rad(9)
+			local pivot = CFrame.new(c.top) * CFrame.fromAxisAngle(c.axis, angle) * CFrame.new(-c.top)
+			for _, item in c.parts do
+				item.part.CFrame = pivot * item.cf
+			end
+			local side = math.cos(t * math.pi) > 0 and 1 or -1
+			if side ~= c.side then
+				c.side = side
+				if c.tick then
+					c.tick:Play()
+				end
+			end
+		end
+	end
+end)
