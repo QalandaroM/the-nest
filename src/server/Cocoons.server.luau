@@ -182,6 +182,17 @@ local function makeBody(victim: Player, character: Model)
 	layDown(body, root.Position, rng:NextNumber(0, math.pi * 2), character) -- не ловим лучом самого мертвеца
 
 	local bodyRoot = body:FindFirstChild("HumanoidRootPart") :: BasePart
+	-- суставы мёртвого персонажа не держат части, поэтому привариваем всё к корню:
+	-- иначе при переноске руки, ноги и голова отвалятся и провалятся сквозь пол
+	for _, part in body:GetDescendants() do
+		if part:IsA("BasePart") and part ~= bodyRoot then
+			local weld = Instance.new("WeldConstraint")
+			weld.Name = "BodyWeld"
+			weld.Part0 = bodyRoot
+			weld.Part1 = part
+			weld.Parent = part
+		end
+	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "BodyPrompt"
 	prompt.ActionText = "Взять тело"

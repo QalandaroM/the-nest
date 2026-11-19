@@ -3,6 +3,8 @@
 --   ClosedCFrame, HingeLocal, OpenSign — положение и петли
 --   Open — открыта ли сейчас, Locked — заперта, KeyDoor — открывается ключом
 -- Запертые двери открывает BasementKey.server.luau (через атрибут Locked).
+-- Bats = true — за дверью летучие мыши: при первом открытии за раунд они вылетают
+--   в лицо тому, кто открыл (RemoteEvent BatScare, эффект — Bats.client.luau).
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +14,22 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 
 local busy: { [BasePart]: boolean } = {}
+
+local remotes = ReplicatedStorage:FindFirstChild("Remotes") or Instance.new("Folder")
+remotes.Name = "Remotes"
+remotes.Parent = ReplicatedStorage
+local batEvent = Instance.new("RemoteEvent")
+batEvent.Name = "BatScare" -- (door: BasePart, opener: Player)
+batEvent.Parent = remotes
+
+-- Летучие мыши: один раз за раунд на каждую такую дверь
+local function maybeBats(door: BasePart, player: Player)
+	if not door:GetAttribute("Bats") or door:GetAttribute("BatsUsed") or not workspace:GetAttribute("RoundActive") then
+		return
+	end
+	door:SetAttribute("BatsUsed", true)
+	batEvent:FireAllClients(door, player)
+end
 
 local function playAt(part: BasePart, id: string, volume: number)
 	local sound = Instance.new("Sound")
@@ -99,7 +117,11 @@ local function setup(door: Instance)
 			end
 			return
 		end
-		swing(door, not door:GetAttribute("Open"))
+		local opening = not door:GetAttribute("Open")
+		if opening then
+			task.delay(0.25, maybeBats, door, player) -- мыши вылетают, когда дверь чуть приоткрылась
+		end
+		swing(door, opening)
 	end)
 end
 
@@ -134,6 +156,7 @@ workspace:GetAttributeChangedSignal("RoundActive"):Connect(function()
 		if door:IsA("BasePart") and door:GetAttribute("ClosedCFrame") then
 			local open = door:GetAttribute("StartOpen") == true
 			door:SetAttribute("Open", open)
+			door:SetAttribute("BatsUsed", nil)
 			door.CFrame = targetCFrame(door, open)
 		end
 	end

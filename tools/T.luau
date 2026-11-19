@@ -3,6 +3,12 @@
 --   require(game.ServerStorage.Tools.T:Clone()).meet()  — на сервере в тесте: монстр за спиной выжившего
 --   require(game.ServerStorage.Tools.T:Clone()).info()  — на сервере: HP, раны, бинты всех игроков
 --   require(game.ServerStorage.Tools.T:Clone()).give(2) — на сервере: выжившим по 2 бинта
+--   .code()     — на сервере: показать код сейфа и порядок свечей этого раунда
+--   .parts()    — на сервере: дать первому выжившему все 3 части талисмана
+--   .talisman() — на сервере: дать первому выжившему готовый талисман
+--   .face()     — на сервере: выживший с талисманом стоит лицом к монстру в 4 studs
+--   .go(name)   — на сервере: выжившего к сейфу / ящику / могилам / алтарю ("Safe", "Chest", "Graves", "Altar")
+--   .monster()  — в редактировании: статуя монстра и большой талисман у дороги (посмотреть модели)
 
 local Players = game:GetService("Players")
 
@@ -91,6 +97,15 @@ function T.hide(name: string?)
 	end
 end
 
+-- Монстр только поднимает тело (чтобы посмотреть, как он его несёт)
+function T.carry()
+	local mon = byRole("Monster")
+	local test = game.ServerStorage:FindFirstChild("CocoonTest")
+	if mon and test then
+		print("THE NEST carry:", test:Invoke("pickup", mon))
+	end
+end
+
 -- Все выжившие начинают рвать кокон (как удержание E). Сначала T.near()
 function T.tear()
 	local test = game.ServerStorage:FindFirstChild("CocoonTest")
@@ -117,6 +132,15 @@ function T.near()
 	print("THE NEST near: выжившие у кокона")
 end
 
+-- Посветлее, чтобы снять скриншоты (только для показа, в игре так не будет)
+function T.bright()
+	local Lighting = game:GetService("Lighting")
+	Lighting.Ambient = Color3.fromRGB(120, 110, 105)
+	Lighting.OutdoorAmbient = Color3.fromRGB(140, 140, 150)
+	Lighting.FogEnd = 1000
+	print("THE NEST bright: светлее для скриншотов")
+end
+
 -- Состояние тел и коконов
 function T.cocoons()
 	for _, b in (workspace:FindFirstChild("Bodies") or Instance.new("Folder")):GetChildren() do
@@ -138,6 +162,70 @@ function T.give(n: number?)
 		end
 	end
 	print("THE NEST give: бинты выданы")
+end
+
+
+local function talismanTest(action: string, player: Player?)
+	local test = game.ServerStorage:FindFirstChild("TalismanTest")
+	if not test then
+		print("THE NEST: нет ServerStorage.TalismanTest (запустите тест в Studio)")
+		return nil
+	end
+	return test:Invoke(action, player)
+end
+
+function T.code()
+	local code, order = talismanTest("code")
+	print(`THE NEST code: сейф {code}, свечи {order}`)
+end
+
+function T.parts()
+	local sur = byRole("Survivor")
+	if sur then
+		talismanTest("parts", sur)
+		print(`THE NEST parts: у {sur.Name} все 3 части — неси на алтарь`)
+	end
+end
+
+function T.talisman()
+	local sur = byRole("Survivor")
+	if sur then
+		talismanTest("give", sur)
+		print(`THE NEST talisman: талисман у {sur.Name}`)
+	end
+end
+
+function T.face()
+	local mon, sur = byRole("Monster"), byRole("Survivor")
+	if not mon or not sur or not mon.Character or not sur.Character then
+		print("THE NEST face: нет монстра или выжившего")
+		return
+	end
+	local base = Vector3.new(0, 5, -25)
+	local m = base + Vector3.new(0, 0, -4)
+	sur.Character:PivotTo(CFrame.lookAt(base, m))
+	mon.Character:PivotTo(CFrame.lookAt(m, base))
+	print("THE NEST face: выживший смотрит на монстра — кликайте талисманом")
+end
+
+function T.go(name: string?)
+	local sur = byRole("Survivor")
+	local quest = workspace:FindFirstChild("Quest")
+	if not sur or not sur.Character or not quest then
+		return
+	end
+	local target = name == "Graves" and quest:FindFirstChild("Candle_Martha") or quest:FindFirstChild(name or "Safe")
+	if target and target:IsA("Model") then
+		local pos = target:GetPivot().Position
+		sur.Character:PivotTo(CFrame.new(pos + target:GetPivot().LookVector * 4 + Vector3.new(0, 3, 0)))
+		print(`THE NEST go: {sur.Name} у {target.Name}`)
+	end
+end
+
+function T.monster()
+	local Shared = game.ReplicatedStorage.Shared
+	require(Shared.MonsterModel:Clone()).preview()
+	require(Shared.TalismanModel:Clone()).preview()
 end
 
 return T

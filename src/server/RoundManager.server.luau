@@ -1,4 +1,7 @@
--- Управляет раундами: ждёт игроков, выбирает монстра, считает время.
+-- Управляет раундами: ждёт игроков, выбирает монстра, следит, кто победил.
+-- Времени у раунда нет: он идёт, пока живы и выжившие, и монстр.
+-- Выжившие побеждают, если убьют монстра талисманом (Talisman.server.luau).
+-- Монстр побеждает, если убьёт всех выживших раньше.
 -- В Workspace поставьте две детали (Part): MonsterSpawn и SurvivorSpawn.
 -- Атрибут workspace.RoundActive = true, пока идёт раунд.
 
@@ -45,6 +48,9 @@ local function onPlayer(player: Player)
 			local role = player:GetAttribute("Role")
 			if role == "Survivor" then
 				player:SetAttribute("Role", "Dead")
+			elseif role == "Monster" and workspace:GetAttribute("RoundActive") then
+				-- монстра убили талисманом: он не возрождается до конца раунда
+				player:SetAttribute("Role", "Slain")
 			elseif role == nil or role == "Monster" then
 				-- лобби или монстр — возрождаем через пару секунд
 				task.delay(Config.RESPAWN_DELAY, function()
@@ -104,23 +110,22 @@ while true do
 	-- Другие скрипты (щиток, ключ, двери) слушают этот атрибут
 	workspace:SetAttribute("RoundActive", true)
 
-	-- 4. Раунд идёт, пока есть выжившие, монстр и время
-	local timeLeft = Config.ROUND_TIME
-	while timeLeft > 0 and countRole("Survivor") > 0 and countRole("Monster") > 0 do
-		setStatus(`Осталось: {timeLeft} сек`)
+	-- 4. Раунд идёт, пока есть и выжившие, и монстр (таймера нет)
+	local slain = false
+	while countRole("Survivor") > 0 and countRole("Monster") > 0 do
+		local survivors = countRole("Survivor")
+		setStatus(`Выживших: {survivors}. Найдите талисман…`)
 		task.wait(1)
-		timeLeft -= 1
 	end
+	slain = countRole("Slain") > 0
 
 	workspace:SetAttribute("RoundActive", false)
 
 	-- 5. Итог
 	if countRole("Monster") == 0 then
-		setStatus("Монстр вышел. Выжившие победили!")
-	elseif countRole("Survivor") == 0 then
-		setStatus("Монстры победили!")
+		setStatus(slain and "Талисман сжёг монстра. Выжившие победили!" or "Монстр вышел. Выжившие победили!")
 	else
-		setStatus("Время вышло. Выжившие победили!")
+		setStatus("Монстры победили!")
 	end
 
 	task.wait(5)

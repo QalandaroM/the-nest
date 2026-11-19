@@ -93,6 +93,17 @@ local Sounds = {
 	PipeGroan = "rbxassetid://9126148043",
 	DistantScream = "rbxassetid://9125438052",
 	HouseSettle = "rbxassetid://9120862369",
+
+	-- Скример с летучими мышами.
+	-- ВНИМАНИЕ: проверенного ID писка/хлопанья крыльев у нас пока нет. Найдите в Creator Store
+	-- (Toolbox → Audio → «bat» или «wings flap») и вставьте сюда ID, например "rbxassetid://123".
+	-- Пока здесь пусто, Bats.client.luau собирает звук стаи из свиста когтей и крика.
+	BatSwarm = "",
+
+	-- Тихая фоновая музыка во время раунда (Music.client.luau).
+	-- ID взят из подборок хоррор-музыки (APM) и НЕ проверен — если в Output ошибка загрузки,
+	-- замените ID. Если трек не грузится, музыка играет из гула и ветра.
+	MusicTrack = "rbxassetid://1835261249",
 }
 
 return Sounds

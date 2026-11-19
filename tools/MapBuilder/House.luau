@@ -1,5 +1,7 @@
--- Дом Хейлов: 2 этажа, 18 комнат, лестница в холле, запертая дверь в подвал.
+-- Дом Хейлов: 2 этажа, 13 комнат, лестница в холле, запертая дверь в подвал.
 -- Дом стоит в прямоугольнике x -54..54, z -36..36 (перед дома смотрит в -Z).
+-- Комнат стало меньше: прачечная + задний коридор, детская + швейная,
+-- комната Марты + её ванная — теперь по одной большой комнате.
 
 local Kit = require(script.Parent.Kit)
 local Decor = require(script.Parent.Decor)
@@ -14,11 +16,16 @@ local House = {}
 
 local H1 = S - 1 - G -- высота стен 1 этажа (14)
 local H2 = TOP - S -- высота стен 2 этажа (14)
-local DOOR = 9 -- высота дверного проёма
+local DOOR = 10.5 -- высота дверного проёма (было 9)
+local WIDEN = 0.75 -- каждый проём шире на 0.75 с каждой стороны (было 4 studs, стало 5.5)
 
 local PX, NX, PZ, NZ = Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1)
 
+-- Дверь. opts.exact = не расширять (если рядом другая стена)
 local function d(s1: number, s2: number, opts: { [string]: any }?)
+	if not (opts and opts.exact) then
+		s1, s2 = s1 - WIDEN, s2 + WIDEN
+	end
 	return { s1, s2, 0, DOOR, "door", opts }
 end
 local function win(s1: number, s2: number, kind: string)
@@ -87,12 +94,14 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	-------------------------------------------------------------------
 	-- Внутренние стены 1 этажа
 	-------------------------------------------------------------------
-	wall(f1, "z", -14, -35.5, 35.5, G, H1, { d(-22, -18), d(2, 6), d(24, 28) }, C.plaster, M.plaster)
-	wall(f1, "x", -4, -53.5, -14.5, G, H1, { d(-46, -42), d(-26, -22) }, C.plaster, M.plaster)
+	-- стена между западным крылом и холлом; от z 14.5 её нет — прачечная и задний коридор одна комната
+	wall(f1, "z", -14, -35.5, 14.5, G, H1, { d(-22, -18), d(2, 6) }, C.plaster, M.plaster)
+	-- за дверью кладовой — летучие мыши
+	wall(f1, "x", -4, -53.5, -14.5, G, H1, { d(-46, -42, { bats = true, open = false }), d(-26, -22) }, C.plaster, M.plaster)
 	-- стена между кладовой/лестницей в подвал и столовой; дверь в подвал заперта на ключ
 	wall(f1, "z", -34, -3.5, 13.5, G, H1, {
 		d(0, 4),
-		d(8.5, 12.5, { locked = true, open = false, keyDoor = true, name = "BasementDoor", color = Color3.fromRGB(52, 30, 22) }),
+		d(8, 13, { exact = true, locked = true, open = false, keyDoor = true, name = "BasementDoor", color = Color3.fromRGB(52, 30, 22) }),
 	}, C.plaster, M.plaster)
 	wall(f1, "x", 7, -53.5, -34.5, G, H1, nil, C.plasterDark, M.plaster) -- стенка лестничного колодца
 	wall(f1, "x", 14, -53.5, -14.5, G, H1, { d(-24, -20) }, C.plaster, M.plaster)
@@ -103,12 +112,12 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	-------------------------------------------------------------------
 	-- Внутренние стены 2 этажа
 	-------------------------------------------------------------------
+	-- детская и швейная теперь одна комната (стены по z = -4 нет), Марта и её ванная — тоже
 	wall(f2, "z", -14, -35.5, 35.5, S, H2, { d(-24, -20), d(2, 6), d(22, 26) }, C.wallpaper, M.plaster)
-	wall(f2, "x", -4, -53.5, -14.5, S, H2, nil, C.wallpaper, M.plaster)
 	wall(f2, "x", 14, -53.5, -14.5, S, H2, nil, C.wallpaper, M.plaster)
-	wall(f2, "z", -34, 14.5, 35.5, S, H2, { d(28, 32) }, C.wallpaper, M.plaster)
-	wall(f2, "z", 14, -35.5, 35.5, S, H2, { d(-24, -20), d(6, 10), d(26, 30) }, C.wallpaper, M.plaster)
-	wall(f2, "x", 0, 14.5, 53.5, S, H2, { d(42, 46) }, C.wallpaper, M.plaster)
+	-- в кладовке и в гостевой — летучие мыши
+	wall(f2, "z", 14, -35.5, 35.5, S, H2, { d(-24, -20), d(6, 10), d(26, 30, { bats = true, open = false }) }, C.wallpaper, M.plaster)
+	wall(f2, "x", 0, 14.5, 53.5, S, H2, { d(42, 46, { bats = true, open = false }) }, C.wallpaper, M.plaster)
 	wall(f2, "z", 32, 0.5, 35.5, S, H2, { d(30, 34) }, C.wallpaper, M.plaster)
 	wall(f2, "x", 18, 14.5, 31.5, S, H2, nil, C.wallpaper, M.plaster)
 
@@ -152,12 +161,8 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	Decor.cornerWeb(porch, Vector3.new(-17.4, 15, -47.4), Vector3.new(1, 0, 1), 4)
 	Decor.cornerWeb(porch, Vector3.new(17.4, 15, -47.4), Vector3.new(-1, 0, 1), 3.5)
 
-	local hideouts, fuses, notes, keySpawns = ctx.hideouts, ctx.fuses, ctx.notes, ctx.keySpawns
+	local hideouts, notes, keySpawns = ctx.hideouts, ctx.notes, ctx.keySpawns
 
-	local function fuse(name: string, pos: Vector3)
-		local p = Kit.cylinder(fuses, CFrame.new(pos + Vector3.new(0, 0.6, 0)), 1.2, 0.5, Color3.fromRGB(190, 80, 30), M.metal, { CanCollide = false })
-		p.Name = name
-	end
 	local function note(name: string, pos: Vector3, text: string)
 		local p = Kit.newPart(notes, Vector3.new(1, 0.05, 1.4), CFrame.new(pos + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, rng:NextNumber(-0.5, 0.5), 0), Color3.fromRGB(225, 215, 185), M.smooth, { Name = name, CanCollide = false })
 		p:SetAttribute("Text", text)
@@ -250,7 +255,7 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	Decor.dress(dining, -34, -4, -14, 14, G, H1, { amount = 4, webs = 2, decals = 3 })
 	note("Note_Dining", Vector3.new(-22, G + 3.2, 4), "Марта накрыла на четверых. Нас трое. — Т.Х.")
 
-	-- Прачечная (x -54..-14, z 14..36)
+	-- Прачечная вместе с задним коридором (x -54..14, z 14..36)
 	local laundry = folder(f1, "Laundry")
 	for i = 0, 2 do
 		Kit.piece(laundry, at(-50 + i * 4, G, 33.6, NZ), Vector3.new(0, 1.9, 0), Vector3.new(3.4, 3.8, 3), Color3.fromRGB(150, 146, 132), M.smooth)
@@ -260,16 +265,15 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	F.barrel(laundry, at(-18, G, 32))
 	F.crate(laundry, at(-18.5, G, 18))
 	Kit.hangingLamp(laundry, -34, S - 1, 25, 3, "broken")
-	Decor.dress(laundry, -54, 14, -14, 36, G, H1, { amount = 6, webs = 4, decals = 4, slime = 1 })
 	Kit.marker(hideouts, "Hideout_Laundry", Vector3.new(-50, G, 18))
 
-	-- Задний коридор (x -14..14, z 14..36)
-	local back = folder(f1, "BackCorridor")
+	-- бывший задний коридор (x -14..14): ящик, коробка, вешалка, задняя дверь
+	local back = laundry -- задний коридор — часть прачечной
 	F.crate(back, at(-10, G, 32))
 	F.cardboard(back, at(10, G, 18))
 	box(back, 11.5, G, 33.5, 12, G + 6, 34, C.trim, M.wood) -- вешалка
 	Kit.hangingLamp(back, 0, S - 1, 25, 3, "powered", 0.9)
-	Decor.dress(back, -14, 14, 14, 36, G, H1, { amount = 4, webs = 2, decals = 3 })
+	Decor.dress(laundry, -54, 14, 14, 36, G, H1, { amount = 6, webs = 4, decals = 4, slime = 1, writing = "ОНА ВНИЗУ" })
 
 	-- Гостиная (x 14..54, z -36..6)
 	local living = folder(f1, "LivingRoom")
@@ -282,7 +286,6 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	box(living, 36, G, -22, 48, G + 0.06, -8, Color3.fromRGB(70, 34, 30), M.fabric, { CanCollide = false })
 	Kit.hangingLamp(living, 34, S - 1, -15, 4, "powered")
 	Decor.dress(living, 14, -36, 54, 6, G, H1, { amount = 8, webs = 3, decals = 5 })
-	fuse("Fuse_LivingRoom", Vector3.new(52.3, G + 5.85, -11))
 	Kit.marker(hideouts, "Hideout_LivingRoom", Vector3.new(51, G, 3))
 	Kit.marker(keySpawns, "Key_Piano", Vector3.new(24, G + 5.6, -33.8), Vector3.new(1, 1, 1))
 
@@ -297,9 +300,8 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	Decor.candle(library, Vector3.new(31.8, G + 3.2, 18.8), true)
 	Kit.hangingLamp(library, 34, S - 1, 20, 4, "powered")
 	Decor.dress(library, 14, 6, 54, 36, G, H1, { amount = 9, webs = 4, decals = 4 })
-	fuse("Fuse_Library", Vector3.new(31.8, G + 3.2, 17.2))
 	Kit.marker(keySpawns, "Key_LibraryDesk", Vector3.new(36, G + 3.2, 18.6), Vector3.new(1, 1, 1))
-	note("Note_Library", Vector3.new(36, G + 3.25, 17.3), "Дневник Томаса: «Пять предохранителей. Она утащила их в свои норы. Прожекторы готовы — нужен только ток».")
+	note("Note_Library", Vector3.new(36, G + 3.25, 17.3), "Дневник Томаса: «Её ранит только оберег Марты. Я разделил его на три части: цепочку запер в сейфе в спальне, камень — в ящике у генератора (замок открывается только при токе), оправу Лили зарыла у могил. Соберите их на алтаре здесь, в библиотеке».")
 
 	-------------------------------------------------------------------
 	-- 2 ЭТАЖ
@@ -312,7 +314,7 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	Decor.dress(landing, -14, 10, 14, 36, S, H2, { amount = 4, webs = 2, decals = 3 })
 	Kit.marker(hideouts, "Hideout_Landing", Vector3.new(-10, S, 32))
 
-	-- Детская Лили (x -54..-14, z -36..-4)
+	-- Детская Лили вместе со швейным углом (x -54..-14, z -36..14)
 	local kids = folder(f2, "KidsRoom")
 	F.bed(kids, at(-49, S, -30, PX), true)
 	F.prop(kids, "teddy", at(-50.5, S + 2, -29, PX))
@@ -323,27 +325,25 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 		Kit.newPart(kids, Vector3.new(1.2, 0.04, 1.6), CFrame.new(rng:NextNumber(-48, -20), S + 0.03, rng:NextNumber(-30, -8)) * CFrame.Angles(0, rng:NextNumber(0, 3), 0), Color3.fromRGB(170, 165, 150), M.smooth, { CanCollide = false })
 	end
 	Kit.hangingLamp(kids, -34, TOP, -20, 3, "powered", 0.9)
-	Decor.dress(kids, -54, -36, -14, -4, S, H2, { amount = 4, webs = 3, decals = 4 })
-	fuse("Fuse_KidsRoom", Vector3.new(-40, S + 2.4, -34))
 	Kit.marker(hideouts, "Hideout_KidsRoom", Vector3.new(-17, S, -33))
 	Kit.marker(keySpawns, "Key_KidsDresser", Vector3.new(-30, S + 4.1, -34.8), Vector3.new(1, 1, 1))
 	note("Note_KidsRoom", Vector3.new(-26, S, -14), "Рисунок Лили: «Большая мама живёт внизу. Она добрая, она обещала забрать маму к себе».")
 
-	-- Швейная комната (x -54..-14, z -4..14) — с манекеном
-	local sewing = folder(f2, "SewingRoom")
+	-- швейный угол (z -4..14) — с манекеном
+	local sewing = kids -- швейный уголок в той же большой детской
 	F.table(sewing, at(-44, S, 5), 6, 3, 3.2)
 	local mq = at(-26, S, 4, NX)
 	Kit.cylinder(sewing, mq * CFrame.new(0, 2, 0), 4, 0.3, C.furnDark, M.wood)
 	Kit.blob(sewing, mq * CFrame.new(0, 5.2, 0), Vector3.new(2.2, 3.4, 1.4), Color3.fromRGB(150, 140, 120), M.fabric, { CanCollide = true })
 	Kit.blob(sewing, mq * CFrame.new(0, 7.2, 0), Vector3.new(1, 1.2, 1), Color3.fromRGB(150, 140, 120), M.fabric, { CanCollide = false })
-	for _ = 1, 5 do
+	for _ = 1, 2 do
 		F.cardboard(sewing, at(rng:NextNumber(-52, -36), S, rng:NextNumber(-2, 12)))
 	end
 	Kit.hangingLamp(sewing, -34, TOP, 5, 3, "broken")
-	Decor.dress(sewing, -54, -4, -14, 14, S, H2, { amount = 5, webs = 4, decals = 4, slime = 0.4 })
+	Decor.dress(kids, -54, -36, -14, 14, S, H2, { amount = 6, webs = 4, decals = 4, slime = 0.3, creepy = 2, writing = "МАМА?" })
 	Kit.marker(hideouts, "Hideout_Sewing", Vector3.new(-50, S, 10))
 
-	-- Комната Марты (x -34..-14, z 14..36)
+	-- Комната Марты вместе с её ванной (x -54..-14, z 14..36)
 	local martha = folder(f2, "MarthaRoom")
 	F.bed(martha, at(-24, S, 31, NZ))
 	F.nightstand(martha, at(-30, S, 34.4, NZ))
@@ -351,17 +351,16 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	F.dresser(martha, at(-15.8, S, 17.5, NX))
 	F.prop(martha, "painting", at(-24, S + 6, 35.25, NZ), 4)
 	Kit.hangingLamp(martha, -24, TOP, 24, 3, "powered", 0.9)
-	Decor.dress(martha, -34, 14, -14, 36, S, H2, { amount = 3, webs = 3, decals = 3 })
 	Kit.marker(keySpawns, "Key_MarthaNightstand", Vector3.new(-29.3, S + 2.4, 34.2), Vector3.new(1, 1, 1))
 	note("Note_Martha", Vector3.new(-20, S, 28), "Марта: «В трубах что-то шевелится. Томас не верит».")
 
-	-- Ванная Марты (x -54..-34, z 14..36)
-	local bath2 = folder(f2, "Bathroom2")
+	-- ванный угол Марты (x -54..-34)
+	local bath2 = martha -- ванная Марты — угол её комнаты
 	box(bath2, -53.5, S, 14.5, -34.5, S + 0.06, 35.5, Color3.fromRGB(110, 108, 98), M.tiles, { CanCollide = false })
 	F.bathtub(bath2, at(-44, S, 33.4, NZ))
 	F.toilet(bath2, at(-52.6, S, 18, PX))
 	F.sink(bath2, at(-44, S, 15.3, PZ))
-	Decor.dress(bath2, -54, 14, -34, 36, S, H2, { amount = 4, webs = 3, decals = 5, slime = 1 })
+	Decor.dress(martha, -54, 14, -14, 36, S, H2, { amount = 5, webs = 4, decals = 4, slime = 0.6 })
 	Kit.marker(hideouts, "Hideout_Bathtub2", Vector3.new(-44, S + 1.2, 33.4))
 
 	-- Спальня Томаса и Марты (x 14..54, z -36..0)
@@ -391,10 +390,9 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	local closet = folder(f2, "Closet")
 	F.shelf(closet, at(23, S, 34.6, NZ), 12, 10, 1.6, 5)
 	F.cabinet(closet, at(30.6, S, 22, NX))
-	for _ = 1, 4 do
+	for _ = 1, 2 do
 		F.cardboard(closet, at(rng:NextNumber(16, 28), S, rng:NextNumber(20, 30)))
 	end
-	Decor.dress(closet, 14, 18, 32, 36, S, H2, { amount = 3, webs = 4, decals = 3 })
 	Kit.marker(hideouts, "Hideout_Closet", Vector3.new(17, S, 21))
 
 	-- Гостевая (x 32..54, z 0..36) — самая заброшенная
@@ -404,8 +402,30 @@ function House.build(map: Instance, ctx: { [string]: Instance })
 	F.prop(guest, "painting", at(53.25, S + 6, 8, NX), 4)
 	F.crate(guest, at(36, S, 4), true)
 	Kit.hangingLamp(guest, 43, TOP, 18, 3, "broken")
-	Decor.dress(guest, 32, 0, 54, 36, S, H2, { amount = 7, webs = 4, decals = 5, slime = 0.6 })
-	fuse("Fuse_GuestRoom", Vector3.new(43, S + 4.1, 34.8))
+	Decor.dress(guest, 32, 0, 54, 36, S, H2, { amount = 7, webs = 4, decals = 5, slime = 0.6, creepy = 2, spiders = 4 })
+	Decor.dress(closet, 14, 18, 32, 36, S, H2, { amount = 3, webs = 4, decals = 3, spiders = 4 })
+
+	-------------------------------------------------------------------
+	-- Названия комнат (клиент показывает их, когда входишь)
+	-------------------------------------------------------------------
+	local z = ctx.zones
+	Kit.zone(z, "Холл", -14, G, -36, 14, S, 14)
+	Kit.zone(z, "Крыльцо", -18, G - 1, -48, 18, 15, -36)
+	Kit.zone(z, "Кухня", -54, G, -36, -14, S - 1, -4)
+	Kit.zone(z, "Кладовая", -54, G, -4, -34, S - 1, 7)
+	Kit.zone(z, "Лестница в подвал", -54, G, 7, -34, S - 1, 14)
+	Kit.zone(z, "Столовая", -34, G, -4, -14, S - 1, 14)
+	Kit.zone(z, "Прачечная", -54, G, 14, 14, S - 1, 36)
+	Kit.zone(z, "Гостиная", 14, G, -36, 54, S - 1, 6)
+	Kit.zone(z, "Библиотека", 14, G, 6, 54, S - 1, 36)
+	Kit.zone(z, "Второй этаж", -14, S, 10, 14, TOP, 36)
+	Kit.zone(z, "Галерея", -14, S, -36, 14, TOP, 10)
+	Kit.zone(z, "Детская Лили", -54, S, -36, -14, TOP, 14)
+	Kit.zone(z, "Комната Марты", -54, S, 14, -14, TOP, 36)
+	Kit.zone(z, "Спальня Томаса", 14, S, -36, 54, TOP, 0)
+	Kit.zone(z, "Ванная", 14, S, 0, 32, TOP, 18)
+	Kit.zone(z, "Кладовка", 14, S, 18, 32, TOP, 36)
+	Kit.zone(z, "Гостевая", 32, S, 0, 54, TOP, 36)
 end
 
 return House

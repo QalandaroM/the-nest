@@ -145,9 +145,14 @@ function Kit.folder(parent: Instance, name: string): Folder
 	return f
 end
 
--- Плоский диск (пятно)
+-- Плоский диск (пятно). cf — точка прямо НА поверхности (пол).
+-- Чтобы пятна не мерцали (z-fighting), каждое следующее лежит на своём «слое»:
+-- чуть выше предыдущего, и ни одно не касается пола своей нижней гранью.
+Kit.layer = 0
 function Kit.disk(parent: Instance, cf: CFrame, diameter: number, color: Color3, material: Enum.Material, transparency: number)
-	local p = newPart(parent, Vector3.new(0.06, diameter, diameter * Kit.rng:NextNumber(0.6, 1)), cf, color, material, {
+	Kit.layer = (Kit.layer % 24) + 1
+	local lift = 0.025 + Kit.layer * 0.006
+	local p = newPart(parent, Vector3.new(0.02, diameter, diameter * Kit.rng:NextNumber(0.6, 1)), CFrame.new(0, lift, 0) * cf, color, material, {
 		CanCollide = false,
 		CanQuery = false,
 		CastShadow = false,
@@ -246,6 +251,9 @@ function Kit.door(parent: Instance, closedCF: CFrame, hinge: Vector3, w: number,
 	panel:SetAttribute("Locked", o.locked == true)
 	if o.keyDoor then
 		panel:SetAttribute("KeyDoor", true)
+	end
+	if o.bats then
+		panel:SetAttribute("Bats", true) -- за дверью летучие мыши (скример, Doors.server.luau)
 	end
 	Kit.tag(panel, "Door")
 	-- некоторые двери стоят приоткрытыми
@@ -378,6 +386,100 @@ function Kit.chargePoint(parent: Instance, cf: CFrame)
 	model.PrimaryPart = body
 	Kit.tag(model, "ChargePoint")
 	return model
+end
+
+---------------------------------------------------------------------
+-- Проверка поверхности лучами (чтобы декали не висели в дверях и окнах,
+-- не залезали за угол в соседнюю комнату и не прятались за мебель)
+---------------------------------------------------------------------
+
+-- Есть ли сплошная ровная поверхность под прямоугольником w×h?
+-- center — центр на поверхности, normal — куда смотрит поверхность (в комнату),
+-- right/up — оси прямоугольника. Проверяем центр и 4 угла.
+function Kit.surfaceClear(center: Vector3, normal: Vector3, right: Vector3, up: Vector3, w: number, h: number): boolean
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {}
+	local BACK = 4 -- луч стартует в 4 studs перед поверхностью: мебель на пути тоже заметим
+	local hw, hh = w / 2 - 0.1, h / 2 - 0.1
+	for _, k in { { 0, 0 }, { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
+		local p = center + right * (hw * k[1]) + up * (hh * k[2])
+		local result = workspace:Raycast(p + normal * BACK, -normal * (BACK + 0.5), params)
+		if not result then
+			return false -- дыра: дверь, окно, конец стены
+		end
+		if math.abs(result.Distance - BACK) > 0.12 or result.Normal:Dot(normal) < 0.95 then
+			return false -- мебель, рама, дверь или другая стена
+		end
+		if CollectionService:HasTag(result.Instance, "Door") then
+			return false
+		end
+	end
+	return true
+end
+
+-- Удобные оси для стены / пола / потолка по нормали
+function Kit.axes(normal: Vector3): (Vector3, Vector3)
+	if math.abs(normal.Y) > 0.9 then
+		return Vector3.new(1, 0, 0), Vector3.new(0, 0, 1)
+	end
+	local up = Vector3.new(0, 1, 0)
+	return normal:Cross(up).Unit, up
+end
+
+-- Высота пола под точкой (или nil, если там лестница, мебель или дыра)
+function Kit.floorAt(x: number, y: number, z: number): number?
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {}
+	local result = workspace:Raycast(Vector3.new(x, y + 3, z), Vector3.new(0, -3.6, 0), params)
+	if result and math.abs(result.Position.Y - y) < 0.15 and result.Normal.Y > 0.95 then
+		return result.Position.Y
+	end
+	return nil
+end
+
+-- Модели из Toolbox бывают толще, чем мы думали, и торчат сквозь стену.
+-- Двигаем каждую модель комнаты внутрь прямоугольника x1..x2, z1..z2 (внутренние грани стен).
+function Kit.keepInside(folder: Instance, x1: number, z1: number, x2: number, z2: number)
+	for _, m in folder:GetChildren() do
+		if m:IsA("Model") and m.Name ~= "Spider" and m.Name ~= "Doll" then
+			local cf, size = m:GetBoundingBox()
+			local r = cf - cf.Position
+			local rx, ry, rz = r.RightVector, r.UpVector, r.LookVector
+			local ex = math.abs(rx.X) * size.X / 2 + math.abs(ry.X) * size.Y / 2 + math.abs(rz.X) * size.Z / 2
+			local ez = math.abs(rx.Z) * size.X / 2 + math.abs(ry.Z) * size.Y / 2 + math.abs(rz.Z) * size.Z / 2
+			local p = cf.Position
+			local dx, dz = 0, 0
+			if p.X - ex < x1 then
+				dx = x1 - (p.X - ex)
+			elseif p.X + ex > x2 then
+				dx = x2 - (p.X + ex)
+			end
+			if p.Z - ez < z1 then
+				dz = z1 - (p.Z - ez)
+			elseif p.Z + ez > z2 then
+				dz = z2 - (p.Z + ez)
+			end
+			-- модель шире комнаты или сдвиг слишком большой — значит что-то не так, не трогаем
+			if (dx ~= 0 or dz ~= 0) and math.abs(dx) < 3 and math.abs(dz) < 3 then
+				m:PivotTo(m:GetPivot() + Vector3.new(dx, 0, dz))
+			end
+		end
+	end
+end
+
+-- Невидимая зона комнаты: клиент показывает её название, когда игрок входит
+function Kit.zone(parent: Instance, name: string, x1: number, y1: number, z1: number, x2: number, y2: number, z2: number)
+	local p = box(parent, x1, y1, z1, x2, y2, z2, Color3.fromRGB(0, 255, 0), M.smooth, {
+		Name = name,
+		Transparency = 1,
+		CanCollide = false,
+		CanTouch = false,
+		CanQuery = false,
+		CastShadow = false,
+	})
+	return p
 end
 
 -- Невидимая точка (тайник, место ключа и т.п.)

@@ -168,7 +168,7 @@ function Exterior.build(map: Instance, ctx: { [string]: Instance })
 	for _ = 1, 50 do
 		local x, z = rng:NextNumber(-88, 88), rng:NextNumber(-92, 88)
 		if math.abs(x) > 58 or math.abs(z) > 52 then
-			Kit.disk(ext, CFrame.new(x, 0.03, z) * CFrame.Angles(0, 0, math.pi / 2), rng:NextNumber(4, 11), C.dirt, M.mud, 0)
+			Kit.disk(ext, CFrame.new(x, 0, z) * CFrame.Angles(0, 0, math.pi / 2), rng:NextNumber(4, 11), C.dirt, M.mud, 0)
 		end
 	end
 
@@ -240,7 +240,8 @@ function Exterior.build(map: Instance, ctx: { [string]: Instance })
 		local gx = 38 + i * 5
 		local tilt = rng:NextNumber(-0.15, 0.15)
 		newPart(graves, Vector3.new(3, 3.6, 0.7), CFrame.new(gx, 1.6, 72) * CFrame.Angles(tilt, 0, tilt * 0.5), Color3.fromRGB(90, 90, 86), M.slate, { Name = `Grave_{name}` })
-		box(graves, gx - 1.3, 0, 72.6, gx + 1.3, 0.25, 77, C.dirt, M.mud, { CanCollide = false })
+		local mound = box(graves, gx - 1.3, 0, 72.6, gx + 1.3, 0.25, 77, C.dirt, M.mud, { CanCollide = false })
+		mound.Name = `Mound_{name}`
 	end
 
 	-- Сарай
@@ -249,7 +250,7 @@ function Exterior.build(map: Instance, ctx: { [string]: Instance })
 	box(shed, x1, 0, z1, x2, 0.3, z2, C.floor, M.planks)
 	wall(shed, "x", z1, x1 - 0.5, x2 + 0.5, 0.3, 8, { { 65, 67, 3, 5.5, "boarded" } }, C.extWood, M.planks, -1)
 	wall(shed, "x", z2, x1 - 0.5, x2 + 0.5, 0.3, 8, nil, C.extWood, M.planks, 1)
-	wall(shed, "z", x1, z1 + 0.5, z2 - 0.5, 0.3, 8, { { 34, 38, 0, 7, "door" } }, C.extWood, M.planks, -1)
+	wall(shed, "z", x1, z1 + 0.5, z2 - 0.5, 0.3, 8, { { 34, 38, 0, 7, "door", { bats = true, open = false } } }, C.extWood, M.planks, -1)
 	wall(shed, "z", x2, z1 + 0.5, z2 - 0.5, 0.3, 8, nil, C.extWood, M.planks, 1)
 	newPart(shed, Vector3.new(14, 0.5, 14), CFrame.new(66, 8.6, 36) * CFrame.Angles(0, 0, math.rad(8)), C.roof, M.roof)
 	F.table(shed, at(70, 0.3, 36, Vector3.new(-1, 0, 0)), 6, 2.6, 3.4)
@@ -257,8 +258,14 @@ function Exterior.build(map: Instance, ctx: { [string]: Instance })
 	F.barrel(shed, at(62, 0.3, 32))
 	Decor.dress(shed, x1, z1, x2, z2, 0.3, 7.7, { amount = 3, webs = 3, decals = 2 })
 	Kit.marker(ctx.hideouts, "Hideout_Shed", Vector3.new(63, 0.3, 40))
-	local fz = Kit.cylinder(ctx.fuses, CFrame.new(70, 0.3 + 3.4 + 0.6, 37.5), 1.2, 0.5, Color3.fromRGB(190, 80, 30), M.metal, { CanCollide = false })
-	fz.Name = "Fuse_Shed"
+
+	-- Названия мест
+	local z = ctx.zones
+	Kit.zone(z, "Сарай", x1, 0, z1, x2, 9, z2)
+	Kit.zone(z, "Могилы Хейлов", 36, 0, 66, 66, 10, 82)
+	Kit.zone(z, "Задний двор", -90, 0, 36, 90, 30, 90)
+	Kit.zone(z, "Двор", -90, 0, -95, 90, 30, -36)
+	Kit.zone(z, "Дорога", -220, 0, -125, 220, 30, -95)
 end
 
 return Exterior

@@ -9,6 +9,7 @@
 --   Decor     — гниль, паутина, слизь, свечи
 --   Furniture — мебель (Toolbox или из деталей)
 --   House / Basement / Exterior — сами части карты
+--   Quest     — сейф, ящик Томаса, свечи у могил, алтарь (квесты на талисман)
 --   Pickups   — точки для бинтов
 
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
@@ -19,10 +20,11 @@ local House = require(script.House)
 local Basement = require(script.Basement)
 local Exterior = require(script.Exterior)
 local Pickups = require(script.Pickups)
+local Quest = require(script.Quest)
 
 local MapBuilder = {}
 
-local OLD = { "Map", "Hideouts", "Fuses", "KeySpawns", "MonsterSpawn", "SurvivorSpawn", "LobbySpawn", "Baseplate", "BasementKey", "BandageSpawns", "Bandages" }
+local OLD = { "Map", "Hideouts", "Fuses", "Zones", "Quest", "QuestItems", "KeySpawns", "MonsterSpawn", "SurvivorSpawn", "LobbySpawn", "Baseplate", "BasementKey", "BandageSpawns", "Bandages" }
 
 local function clearOld()
 	for _, name in OLD do
@@ -47,12 +49,14 @@ function MapBuilder.build(): string
 	local map = Kit.folder(workspace, "Map")
 	local ctx = {
 		hideouts = Kit.folder(workspace, "Hideouts"),
-		fuses = Kit.folder(workspace, "Fuses"),
+		zones = Kit.folder(workspace, "Zones"),
 		keySpawns = Kit.folder(workspace, "KeySpawns"),
 		notes = Kit.folder(map, "Notes"),
 	}
 
 	Exterior.build(map, ctx)
+	-- квестовые предметы раньше дома: тогда декали и паутина их обойдут
+	local quest = Quest.build()
 	House.build(map, ctx)
 	Basement.build(map, ctx)
 	Pickups.build()
@@ -70,7 +74,7 @@ function MapBuilder.build(): string
 		end
 	end
 	local st = Assets.stats
-	local result = `THE NEST: карта построена. Деталей: {parts}, тайников: {#ctx.hideouts:GetChildren()}, предохранителей: {#ctx.fuses:GetChildren()}, мест для ключа: {#ctx.keySpawns:GetChildren()}. Модели Toolbox: загружено {st.loaded}, не загрузилось {st.failed}, удалено скриптов {st.scriptsRemoved}`
+	local result = `THE NEST: карта построена. Деталей: {parts}, тайников: {#ctx.hideouts:GetChildren()}, комнат с названием: {#ctx.zones:GetChildren()}, мест для записок: {#quest.CodeNotes:GetChildren()}, мест для ключа: {#ctx.keySpawns:GetChildren()}. Модели Toolbox: загружено {st.loaded}, не загрузилось {st.failed}, удалено скриптов {st.scriptsRemoved}`
 	print(result)
 	return result
 end

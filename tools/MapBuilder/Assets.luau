@@ -58,6 +58,7 @@ local modelCache: { [string]: Model | false } = {}
 local textureCache: { [string]: string | false } = {}
 
 Assets.stats = { loaded = 0, failed = 0, scriptsRemoved = 0 }
+Assets.layer = 0 -- счётчик слоёв декалей (против мерцания)
 
 local function load(id: number): { Instance }?
 	local ok, result = pcall(function()
@@ -171,6 +172,9 @@ function Assets.decal(parent: Instance, key: string, pos: Vector3, normal: Vecto
 		return nil
 	end
 	local up = math.abs(normal.Y) > 0.9 and Vector3.new(0, 0, 1) or Vector3.new(0, 1, 0)
+	-- каждая декаль на своём слое: две декали в одном месте не мерцают (z-fighting)
+	Assets.layer = ((Assets.layer or 0) % 16) + 1
+	pos += normal.Unit * (Assets.layer * 0.004)
 	local cf = CFrame.lookAt(pos, pos + normal, up) * CFrame.Angles(0, 0, math.rad(spin or 0))
 	local holder = Instance.new("Part")
 	holder.Name = "Decal_" .. key

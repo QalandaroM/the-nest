@@ -17,8 +17,12 @@ local H = TOPY - B
 
 local PX, NX, PZ, NZ = Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1)
 
+-- Дверь: проём шире и выше, чем раньше (5.5 × 10.5). opts.exact — не расширять
 local function d(s1: number, s2: number, opts: { [string]: any }?)
-	return { s1, s2, 0, 9, "door", opts }
+	if not (opts and opts.exact) then
+		s1, s2 = s1 - 0.75, s2 + 0.75
+	end
+	return { s1, s2, 0, 10.5, "door", opts }
 end
 
 -- Лампа дневного света (холодная, от щитка)
@@ -48,12 +52,12 @@ function Basement.build(map: Instance, ctx: { [string]: Instance })
 
 	-- Пол и стены
 	box(base, -54, B - 1, -36, 10, B, 36, C.concrete, M.concrete)
-	wall(base, "z", -54, -36.5, 36.5, B, H, { d(23, 27, { name = "CellarDoor", open = false }) }, C.concrete, M.concrete)
+	wall(base, "z", -54, -36.5, 36.5, B, H, { d(23, 27, { exact = true, name = "CellarDoor", open = false }) }, C.concrete, M.concrete)
 	wall(base, "z", 10, -36.5, 36.5, B, H, nil, C.concrete, M.concrete)
 	wall(base, "x", -36, -53.5, 9.5, B, H, nil, C.concrete, M.concrete)
 	wall(base, "x", 36, -53.5, 9.5, B, H, nil, C.concrete, M.concrete)
 	wall(base, "x", 14, -53.5, -34.5, B, H, { d(-46, -42) }, Color3.fromRGB(80, 74, 66), M.brick)
-	wall(base, "z", -34, -3.5, 35.5, B, H, { d(2, 6), d(26, 30) }, Color3.fromRGB(80, 74, 66), M.brick)
+	wall(base, "z", -34, -3.5, 35.5, B, H, { d(2, 6), d(26, 30, { bats = true, open = false }) }, Color3.fromRGB(80, 74, 66), M.brick)
 	wall(base, "x", -4, -53.5, 9.5, B, H, { d(-46, -42), d(-6, -2) }, Color3.fromRGB(80, 74, 66), M.brick)
 	wall(base, "z", -20, -35.5, -4.5, B, H, { d(-22, -18) }, Color3.fromRGB(80, 74, 66), M.brick)
 
@@ -128,23 +132,14 @@ function Basement.build(map: Instance, ctx: { [string]: Instance })
 	Kit.piece(gen, o, Vector3.new(-1.6, 1.8, 0), Vector3.new(1.2, 1.8, 2), Color3.fromRGB(25, 25, 25), M.metal)
 	Kit.piece(gen, o, Vector3.new(0, 3.55, 0), Vector3.new(3, 0.6, 2.4), Color3.fromRGB(150, 34, 28), M.metal)
 
-	-- Щиток для 5 предохранителей (на стене x = 10)
-	local fuseBox = Instance.new("Model")
-	fuseBox.Name = "FuseBox"
-	fuseBox.Parent = base
-	local fo = at(9.2, B + 3.5, -22, NX)
-	Kit.piece(fuseBox, fo, Vector3.new(0, 1.75, 0), Vector3.new(3, 3.5, 0.6), Color3.fromRGB(90, 92, 88), M.rust, { Name = "Body" })
-	for i = 1, 5 do
-		local slot = Kit.piece(fuseBox, fo, Vector3.new(-1.2 + (i - 1) * 0.6, 1.75, -0.32), Vector3.new(0.35, 1.3, 0.1), Color3.fromRGB(15, 15, 15), M.smooth, { CanCollide = false })
-		slot.Name = `Slot{i}`
-	end
-	box(gen, 1, B + 0.05, -22.2, 9, B + 0.25, -21.8, Color3.fromRGB(15, 15, 15), M.smooth, { CanCollide = false }) -- кабель
+	-- кабель от генератора к ящику Томаса (сам ящик строит Quest.luau)
+	box(gen, 1, B + 0.05, -22.2, 6, B + 0.25, -21.8, Color3.fromRGB(15, 15, 15), M.smooth, { CanCollide = false })
 
 	Kit.cylinder(gen, CFrame.new(-16, B + 3.5, -32), 7, 3, C.rust, M.rust) -- бойлер
 	F.shelf(gen, at(-6, B, -35.1, PZ), 6, 7, 1.4, 3)
 	F.barrel(gen, at(6, B, -33))
 	F.barrel(gen, at(3, B, -34))
-	local puddle = Kit.disk(gen, CFrame.new(-10, B + 0.04, -12) * CFrame.Angles(0, 0, math.pi / 2), 6, Color3.fromRGB(52, 60, 58), M.smooth, 0.45)
+	local puddle = Kit.disk(gen, CFrame.new(-10, B, -12) * CFrame.Angles(0, 0, math.pi / 2), 6, Color3.fromRGB(52, 60, 58), M.smooth, 0.45)
 	puddle.Reflectance = 0.35
 	tubeLamp(gen, -5, -18, true, "powered")
 	Decor.dress(gen, -20, -36, 10, -4, B, H, { amount = 4, webs = 3, decals = 4 })
@@ -183,7 +178,19 @@ function Basement.build(map: Instance, ctx: { [string]: Instance })
 	local core = Kit.blob(nest, CFrame.new(-38, B + 1, -22), Vector3.new(3, 2, 3), Color3.fromRGB(120, 24, 20), M.neon)
 	core.Name = "NestCore"
 	Kit.addLight(core, 1, 18, Color3.fromRGB(170, 30, 25))
-	Decor.dress(nest, -54, -36, -20, -4, B, H, { amount = 3, webs = 4, decals = 4, slime = 1 })
+	-- кости и олений череп — «трапеза» Матки
+	for _ = 1, 10 do
+		Kit.newPart(nest, Vector3.new(rng:NextNumber(1, 2.2), 0.25, 0.25), CFrame.new(rng:NextNumber(-50, -26), B + 0.14, rng:NextNumber(-32, -10)) * CFrame.Angles(0, rng:NextNumber(0, 3.14), 0), Color3.fromRGB(196, 186, 160), M.slate, { CanCollide = false })
+	end
+	Decor.dress(nest, -54, -36, -20, -4, B, H, { amount = 3, webs = 4, decals = 4, slime = 1, creepy = 2, spiders = 5 })
+
+	-- Названия комнат
+	local z = ctx.zones
+	Kit.zone(z, "Подвал", -54, B, -4, -34, G - 1, 14)
+	Kit.zone(z, "Угольная", -54, B, 14, -34, G - 1, 36)
+	Kit.zone(z, "Склад", -34, B, -4, 10, G - 1, 36)
+	Kit.zone(z, "Генераторная", -20, B, -36, 10, G - 1, -4)
+	Kit.zone(z, "Гнездо", -54, B, -36, -20, G - 1, -4)
 	Kit.marker(hideouts, "Hideout_Nest", Vector3.new(-38, B, -18))
 
 	local p = Kit.newPart(notes, Vector3.new(1, 0.05, 1.4), CFrame.new(-24, B + 0.03, -8), Color3.fromRGB(225, 215, 185), M.smooth, { Name = "Note_Basement", CanCollide = false })
