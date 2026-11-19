@@ -185,7 +185,7 @@ end
 ---------------------------------------------------------------------
 local function swing(monster: Player, aim: Vector3)
 	-- проверки: роль, живой, когти в руках, задержка
-	if monster:GetAttribute("Role") ~= "Monster" or not workspace:GetAttribute("RoundActive") then
+	if monster:GetAttribute("Role") ~= "Monster" or not workspace:GetAttribute("RoundActive") or monster:GetAttribute("CarryingBody") then
 		return
 	end
 	local character = monster.Character

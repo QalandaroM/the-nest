@@ -34,18 +34,38 @@ local function countRole(role: string): number
 	return count
 end
 
--- Когда выживший умирает, он становится "Dead"
-Players.PlayerAdded:Connect(function(player)
+-- Сами персонажей не возрождаем: убитый выживший должен остаться мёртвым до конца раунда
+-- (его тело уносит монстр, скрипт Cocoons). В лобби и монстра возрождаем вручную.
+Players.CharacterAutoLoads = false
+
+local function onPlayer(player: Player)
 	player.CharacterAdded:Connect(function(character)
 		local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 		humanoid.Died:Connect(function()
-			if player:GetAttribute("Role") == "Survivor" then
+			local role = player:GetAttribute("Role")
+			if role == "Survivor" then
 				player:SetAttribute("Role", "Dead")
-				-- TODO: здесь монстр будет уносить тело и делать кокон
+			elseif role == nil or role == "Monster" then
+				-- лобби или монстр — возрождаем через пару секунд
+				task.delay(Config.RESPAWN_DELAY, function()
+					if player.Parent and player:GetAttribute("Role") == role then
+						player:LoadCharacter()
+						if role == "Monster" then
+							teleport(player, "MonsterSpawn")
+						end
+					end
+				end)
 			end
 		end)
 	end)
-end)
+	if not player.Character then
+		player:LoadCharacter()
+	end
+end
+Players.PlayerAdded:Connect(onPlayer)
+for _, player in Players:GetPlayers() do
+	onPlayer(player)
+end
 
 while true do
 	for _, player in Players:GetPlayers() do

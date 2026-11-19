@@ -57,6 +57,80 @@ function T.info()
 	end
 end
 
+-- Убить выжившего, будто монстр ударил hits раз (для проверки кокона)
+function T.kill(hits: number?)
+	local sur = byRole("Survivor")
+	local h = sur and sur.Character and sur.Character:FindFirstChildOfClass("Humanoid")
+	if h then
+		sur:SetAttribute("HitsTaken", hits or 1)
+		h.Health = 0
+		print(`THE NEST kill: {sur.Name}, ударов {hits or 1}`)
+	end
+end
+
+-- Перенести монстра к тайнику (по имени, например "Hideout_Kitchen")
+function T.tp(name: string?)
+	local mon = byRole("Monster")
+	local h = workspace:FindFirstChild("Hideouts") and workspace.Hideouts:FindFirstChild(name or "Hideout_Kitchen")
+	if mon and mon.Character and h then
+		mon.Character:PivotTo(CFrame.new(h.Position + Vector3.new(3, 3, 0), h.Position + Vector3.new(0, 3, 0)))
+		print(`THE NEST tp: монстр у {h.Name}`)
+	end
+end
+
+-- Монстр берёт тело и прячет его в тайник (как по E). Только в тесте Studio.
+function T.hide(name: string?)
+	local mon = byRole("Monster")
+	local test = game.ServerStorage:FindFirstChild("CocoonTest")
+	local hideout = workspace.Hideouts:FindFirstChild(name or "Hideout_Kitchen")
+	if mon and test and hideout then
+		print("THE NEST pickup:", test:Invoke("pickup", mon))
+		T.tp(name)
+		task.wait(0.5)
+		print("THE NEST hide:", test:Invoke("hide", mon, hideout))
+	end
+end
+
+-- Все выжившие начинают рвать кокон (как удержание E). Сначала T.near()
+function T.tear()
+	local test = game.ServerStorage:FindFirstChild("CocoonTest")
+	for _, p in Players:GetPlayers() do
+		if p:GetAttribute("Role") == "Survivor" and test then
+			print("THE NEST tear:", p.Name, test:Invoke("tear", p))
+		end
+	end
+end
+
+-- Перенести выживших к первому кокону
+function T.near()
+	local cocoon = workspace:FindFirstChild("Cocoons") and workspace.Cocoons:FindFirstChildWhichIsA("Model")
+	if not cocoon then
+		print("THE NEST near: коконов нет")
+		return
+	end
+	local pos = cocoon:GetPivot().Position
+	for _, p in Players:GetPlayers() do
+		if p:GetAttribute("Role") == "Survivor" and p.Character then
+			p.Character:PivotTo(CFrame.lookAt(pos + Vector3.new(0, 1, 4), Vector3.new(pos.X, pos.Y + 1, pos.Z)))
+		end
+	end
+	print("THE NEST near: выжившие у кокона")
+end
+
+-- Состояние тел и коконов
+function T.cocoons()
+	for _, b in (workspace:FindFirstChild("Bodies") or Instance.new("Folder")):GetChildren() do
+		print(`THE NEST тело {b.Name} hits={b:GetAttribute("Hits")} pos={b:GetPivot().Position}`)
+	end
+	for _, c in (workspace:FindFirstChild("Cocoons") or Instance.new("Folder")):GetChildren() do
+		local left = (c:GetAttribute("HatchAt") or 0) - workspace:GetServerTimeNow()
+		print(`THE NEST кокон {c.Name} в {c:GetAttribute("Hideout")} hits={c:GetAttribute("Hits")} осталось={math.floor(left)} порвано={c:GetAttribute("Progress")} state={c:GetAttribute("State")}`)
+	end
+	for _, p in Players:GetPlayers() do
+		print(`THE NEST {p.Name} role={p:GetAttribute("Role")} cocoon={p:GetAttribute("CocoonState")} carrying={p:GetAttribute("CarryingBody")}`)
+	end
+end
+
 function T.give(n: number?)
 	for _, p in Players:GetPlayers() do
 		if p:GetAttribute("Role") == "Survivor" then

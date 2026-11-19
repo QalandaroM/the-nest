@@ -67,6 +67,20 @@ local Sounds = {
 	BandageRip = "rbxassetid://9113836687",
 	BandagePickup = "rbxassetid://9113837823",
 
+	-- Тело и кокон
+	Heartbeat = "rbxassetid://1839090417", -- APM Music (партнёр Roblox), петля
+	CocoonSquirm = {
+		"rbxassetid://9113536416",
+		"rbxassetid://9113536371",
+		"rbxassetid://9113536300",
+	},
+	CocoonHatch = {
+		"rbxassetid://9119559518",
+		"rbxassetid://9119560180",
+		"rbxassetid://9119558990",
+	},
+	BodyPickup = "rbxassetid://9113837381",
+
 	-- Атмосфера
 	Crickets = "rbxassetid://9112764573",
 	IndoorWind = "rbxassetid://9118747525",
