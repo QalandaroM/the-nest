@@ -96,7 +96,17 @@ while true do
 	end
 
 	-- 3. Выбираем случайного монстра
-	local monster = players[math.random(1, #players)]
+	-- В Studio-тесте Player1 (окно, в котором играешь ты) всегда выживший — см. Config.STUDIO_PLAYER1_SURVIVOR
+	local candidates = players
+	if Config.STUDIO_PLAYER1_SURVIVOR and game:GetService("RunService"):IsStudio() and #players > 1 then
+		candidates = {}
+		for _, player in players do
+			if player.Name ~= "Player1" then
+				table.insert(candidates, player)
+			end
+		end
+	end
+	local monster = candidates[math.random(1, #candidates)]
 	for _, player in players do
 		if player == monster then
 			player:SetAttribute("Role", "Monster")

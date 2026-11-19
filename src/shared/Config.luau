@@ -4,6 +4,7 @@
 local Config = {
 	MIN_PLAYERS = 2, -- сколько игроков нужно для старта
 	INTERMISSION = 15, -- пауза перед раундом (сек)
+	STUDIO_PLAYER1_SURVIVOR = true, -- в Studio-тесте Player1 всегда выживший (в настоящей игре не действует)
 
 	COCOON_BASE_TIME = 30, -- кокон после 1 удара вылупится через 30 сек
 	COCOON_PER_HIT = 15, -- каждый следующий удар даёт +15 сек
