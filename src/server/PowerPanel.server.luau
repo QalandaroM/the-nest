@@ -200,6 +200,10 @@ repairPrompt.RequiresLineOfSight = false
 repairPrompt.HoldDuration = 0
 repairPrompt:SetAttribute("ForRole", "Survivor")
 repairPrompt.Parent = box
+-- починили до 100% — «Чинить» не показываем (Prompts.client прячет по атрибуту Hidden)
+workspace:GetAttributeChangedSignal("PanelProgress"):Connect(function()
+	repairPrompt:SetAttribute("Hidden", (workspace:GetAttribute("PanelProgress") or 0) >= 100 or nil)
+end)
 
 local breakPrompt = Instance.new("ProximityPrompt")
 breakPrompt.Name = "BreakPrompt"

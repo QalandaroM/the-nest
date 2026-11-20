@@ -116,6 +116,21 @@ local function surfaceBelow(pos: Vector3, ignore: { Instance }): Vector3
 	return result and result.Position or pos
 end
 
+-- Подсказку не нужно выключать через Enabled (клиент Prompts.client включит её обратно) —
+-- ставим атрибут Hidden = true, и клиент её прячет.
+local function hide(p: ProximityPrompt?, hidden: boolean)
+	if p then
+		p:SetAttribute("Hidden", hidden or nil)
+	end
+end
+
+-- Предмет, который надо подобрать, лежит прямо на сейфе/алтаре/рядом с бинтом —
+-- его подсказку показываем всегда, чтобы соседняя подсказка на E её не закрыла.
+local function alwaysShow(p: ProximityPrompt): ProximityPrompt
+	p.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
+	return p
+end
+
 local function prompt(parent: Instance, action: string, object: string, role: string?, dist: number?, hold: number?): ProximityPrompt
 	local p = Instance.new("ProximityPrompt")
 	p.ActionText = action
@@ -172,7 +187,7 @@ local function spawnPiece(key: string, pos: Vector3)
 	glow.Brightness = 0.5
 	glow.Range = 6
 	glow.Parent = model.PrimaryPart
-	local p = prompt(model.PrimaryPart :: BasePart, "Взять", `Часть талисмана: {TalismanModel.NAMES[key]}`, "Survivor")
+	local p = alwaysShow(prompt(model.PrimaryPart :: BasePart, "Взять", `Часть талисмана: {TalismanModel.NAMES[key]}`, "Survivor"))
 	p.Triggered:Connect(function(player)
 		if not near(player, model.PrimaryPart :: BasePart, 9) or player:GetAttribute(`Has{key}`) then
 			return
@@ -284,7 +299,7 @@ if safe and safeDoor and safeBody then
 			return
 		end
 		safeOpen = true
-		p.Enabled = false
+		hide(p, true)
 		safeEvent:FireClient(player, "Right")
 		playAt(safeBody, Sounds.DoorUnlock, 1)
 		local hinge = safeDoor:GetAttribute("HingeLocal") :: Vector3
@@ -331,7 +346,7 @@ if chest and chestBody and chestLid then
 			return
 		end
 		chestOpen = true
-		p.Enabled = false
+		hide(p, true)
 		refreshLock()
 		playAt(chestBody, Sounds.DoorUnlock, 1)
 		swingPart(chestLid, chestLid:GetAttribute("HingeLocal") :: Vector3, CFrame.Angles(math.rad(100), 0, 0), 1.2)
@@ -362,6 +377,8 @@ local function setCandle(name: string, lit: boolean)
 			light.Enabled = lit
 		end
 		c:SetAttribute("Lit", lit)
+		local base = c.PrimaryPart or c:FindFirstChildWhichIsA("BasePart")
+		hide(base and base:FindFirstChildOfClass("ProximityPrompt"), lit)
 	end
 end
 
@@ -543,7 +560,7 @@ spawnTalisman = function(cf: CFrame)
 	end
 	local model = TalismanModel.build(cf, nil, 1.3)
 	model.Name = "TalismanPickup"
-	local p = prompt(model.PrimaryPart :: BasePart, "Взять талисман", "Оберег Марты", "Survivor")
+	local p = alwaysShow(prompt(model.PrimaryPart :: BasePart, "Взять талисман", "Оберег Марты", "Survivor"))
 	p.Triggered:Connect(function(player)
 		if not near(player, model.PrimaryPart :: BasePart, 9) or not model.Parent then
 			return
@@ -570,6 +587,8 @@ local function tryAssemble()
 	end
 	-- все 3 части на алтаре: вспышка, и они сливаются в талисман
 	playAt(altarBody, Sounds.PowerOn, 1, 90, 0.6)
+	-- все части на месте: «Положить части» больше не нужно (и не закроет «Взять талисман»)
+	hide(altarBody:FindFirstChildOfClass("ProximityPrompt"), true)
 	task.delay(1.5, function()
 		for _, m in placedModels do
 			m:Destroy()
@@ -683,9 +702,7 @@ local function reset()
 		safeDoor.CFrame = safeDoorClosed
 	end
 	local safePrompt = safeBody and safeBody:FindFirstChildOfClass("ProximityPrompt")
-	if safePrompt then
-		safePrompt.Enabled = true
-	end
+	hide(safePrompt, false)
 
 	-- ящик
 	chestOpen = false
@@ -693,10 +710,10 @@ local function reset()
 		chestLid.CFrame = lidClosed
 	end
 	local chestPrompt = chestBody and chestBody:FindFirstChildOfClass("ProximityPrompt")
-	if chestPrompt then
-		chestPrompt.Enabled = true
-	end
+	hide(chestPrompt, false)
 	refreshLock()
+	-- алтарь снова принимает части
+	hide(altarBody and altarBody:FindFirstChildOfClass("ProximityPrompt"), false)
 
 	-- свечи: новый порядок
 	ritualOrder = table.clone(GRAVES)

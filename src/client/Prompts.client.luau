@@ -2,6 +2,7 @@
 -- У ProximityPrompt атрибут ForRole = "Survivor" или "Monster".
 -- NeedsCarry = true — только когда монстр несёт тело (тайники).
 -- У родителя подсказки атрибут Occupied = true — подсказка скрыта (в тайнике уже кокон).
+-- У самой подсказки атрибут Hidden = true — она больше не нужна (сейф открыт, свеча горит…).
 -- Это только для удобства: сервер всё равно проверяет всё сам.
 
 local Players = game:GetService("Players")
@@ -10,6 +11,9 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local player = Players.LocalPlayer
 
 local function allowed(prompt: ProximityPrompt): boolean
+	if prompt:GetAttribute("Hidden") then
+		return false
+	end
 	local role = prompt:GetAttribute("ForRole")
 	if role ~= nil and player:GetAttribute("Role") ~= role then
 		return false
@@ -23,8 +27,20 @@ local function allowed(prompt: ProximityPrompt): boolean
 	return true
 end
 
+local watchedPrompts = setmetatable({}, { __mode = "k" })
+
 local function refresh(prompt: Instance)
-	if prompt:IsA("ProximityPrompt") and prompt:GetAttribute("ForRole") ~= nil then
+	if not prompt:IsA("ProximityPrompt") then
+		return
+	end
+	-- следим за Hidden (один раз на подсказку)
+	if not watchedPrompts[prompt] then
+		watchedPrompts[prompt] = true
+		prompt:GetAttributeChangedSignal("Hidden"):Connect(function()
+			refresh(prompt)
+		end)
+	end
+	if prompt:GetAttribute("ForRole") ~= nil or prompt:GetAttribute("Hidden") ~= nil then
 		prompt.Enabled = allowed(prompt)
 	end
 end

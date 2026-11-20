@@ -24,6 +24,8 @@ local function setup(part: Instance)
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.MaxActivationDistance = 7
 	prompt.RequiresLineOfSight = false
+	-- записку показываем всегда: рядом может лежать бинт или быть дверь на той же E
+	prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
 	prompt.Parent = part
 	prompt.Triggered:Connect(function(player)
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
