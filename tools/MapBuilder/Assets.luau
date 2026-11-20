@@ -27,8 +27,11 @@ Assets.MODELS = {
 	web = { id = 299892678, height = 5, yaw = 0 },
 	cornerWeb = { id = 18471692316, height = 5, yaw = 0 },
 	cabinet = { id = 5368715664, height = 6, yaw = 0 },
-	bookshelf = { id = 141047988, height = 10, yaw = 0 },
-	bookshelfSmall = { id = 834958293, height = 8, yaw = 0 },
+	-- у шкафов книги смотрят в +Z (а не в -Z) — разворачиваем на 180°.
+	-- Модели широкие и низкие (19×13), поэтому подгоняем по ширине, а не по высоте —
+	-- иначе шкаф выходил 14 studs в ширину и пролезал сквозь стену
+	bookshelf = { id = 141047988, length = 9, yaw = 180 },
+	bookshelfSmall = { id = 834958293, length = 7, yaw = -90 }, -- у этой модели книги смотрят вбок
 	fridge = { id = 90239927677819, height = 7, yaw = 0 },
 	stove = { id = 8268013214, height = 3.6, yaw = 0 },
 	teddy = { id = 8820218869, height = 1.6, yaw = 0 },
