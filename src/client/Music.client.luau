@@ -2,7 +2,8 @@
 -- Слои: 1) фоновый трек (Sounds.MusicTrack), громкость медленно «дышит» — то накатывает, то оседает;
 --       2) низкий гул и далёкий хор со стоном (Sounds.MusicAmbience) — играют, даже если трек не загрузился;
 --       3) когда монстр рядом (для выжившего) — всё громче и выше, и стучит сердце.
---       4) монстр подобрался ближе Config.MONSTER_STINGER_DISTANCE — резкий удар музыки и рёв.
+--       4) монстр подобрался ближе Config.MONSTER_STINGER_DISTANCE — жуткий крик (скример) и рёв;
+--       5) монстр спрятал тело и появился кокон — низкий «браам» (слышат все, но без места — не подсказка, где кокон).
 --       Иногда в тишине — низкий стон, будто дом оседает.
 -- Музыку слышит только этот игрок.
 
@@ -79,11 +80,11 @@ local function danger(): (number, number)
 	return math.clamp(best, 0, 1), nearest
 end
 
--- Резкий страшный звук: удар музыки + рёв. Только для этого игрока.
+-- Скример: жуткий крик + рёв. Только для этого игрока.
 local lastStinger = -math.huge
 local wasNear = false
 local function stinger()
-	for _, pair in { { Sounds.MonsterStinger, 0.7, 1 }, { Sounds.MonsterRoar, 0.5, 0.8 } } do
+	for _, pair in { { Sounds.MonsterStinger, Config.SCREAM_STINGER_VOLUME, 1 }, { Sounds.MonsterRoar, 0.5, 0.8 } } do
 		local s = Instance.new("Sound")
 		s.SoundId = pair[1]
 		s.Volume = pair[2]
@@ -95,6 +96,27 @@ local function stinger()
 		end)
 	end
 end
+
+-- Появился кокон (сервер положил его в workspace.Cocoons) — низкий «браам»
+task.spawn(function()
+	local cocoons = workspace:WaitForChild("Cocoons", 30)
+	if not cocoons then
+		return
+	end
+	cocoons.ChildAdded:Connect(function()
+		if not playing then
+			return
+		end
+		local s = Instance.new("Sound")
+		s.SoundId = Sounds.CocoonBraam
+		s.Volume = Config.COCOON_BRAAM_VOLUME
+		s.Parent = SoundService -- не в мире, а «в голове»: по звуку не понять, где кокон
+		s:Play()
+		s.Ended:Once(function()
+			s:Destroy()
+		end)
+	end)
+end)
 
 -- Монстр сам слышит своё рычание (MonsterVoice.server) — делаем его себе потише
 local function quietOwnGrowl()

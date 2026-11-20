@@ -117,8 +117,9 @@ local Sounds = {
 		"rbxassetid://9113984056", -- то же, 3
 	},
 	-- Резкий звук, когда монстр подобрался близко к выжившему (Music.client.luau)
-	MonsterStinger = "rbxassetid://9047014318", -- Beautiful Horror - Stinger 1 (APM Music)
+	MonsterStinger = "rbxassetid://9043346594", -- HORROR SCREAM 16 (APM Music): скримеры — монстр подкрался, летучие мыши
 	MonsterRoar = "rbxassetid://9113980319", -- Creature Mix Giant Crab Monster Roar Growl 1
+	CocoonBraam = "rbxassetid://9043342758", -- DARK BRAAM 11 (APM Music): монстр спрятал тело, появился кокон
 }
 
 return Sounds

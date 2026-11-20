@@ -128,6 +128,15 @@ batEvent.OnClientEvent:Connect(function(door: BasePart, opener: Player)
 	swarmSound(door, isMe)
 	if isMe then
 		task.delay(0.35, faceFlash)
+		-- жуткий крик-скример тому, кто открыл дверь
+		local scream = Instance.new("Sound")
+		scream.SoundId = Sounds.MonsterStinger
+		scream.Volume = Config.SCREAM_STINGER_VOLUME
+		scream.Parent = game:GetService("SoundService")
+		scream:Play()
+		scream.Ended:Once(function()
+			scream:Destroy()
+		end)
 	end
 
 	for i = 1, Config.BAT_COUNT do
