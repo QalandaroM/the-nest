@@ -1,6 +1,7 @@
 -- Управляет раундами: ждёт игроков, выбирает монстра, следит, кто победил.
 -- Времени у раунда нет: он идёт, пока живы и выжившие, и монстр.
--- Выжившие побеждают, если убьют монстра талисманом (Talisman.server.luau).
+-- Выжившие побеждают, если убьют талисманом всех монстров (Talisman.server.luau),
+-- в том числе второго — того, кто вылупился из кокона.
 -- Монстр побеждает, если убьёт всех выживших раньше.
 -- В Workspace поставьте две детали (Part): MonsterSpawn и SurvivorSpawn.
 -- Атрибут workspace.RoundActive = true, пока идёт раунд.
@@ -73,9 +74,35 @@ for _, player in Players:GetPlayers() do
 	onPlayer(player)
 end
 
+-- Второй монстр: кокон вылупился (скрипт Cocoons) → убитый игрок встаёт из кокона монстром.
+-- Он такой же монстр, как первый: когти, может носить тела и делать коконы,
+-- талисман его тоже жжёт. Выжившие побеждают, только когда сожгут ВСЕХ монстров.
+local ServerStorage = game:GetService("ServerStorage")
+task.spawn(function()
+	local hatched = ServerStorage:WaitForChild("CocoonHatched") :: BindableEvent
+	hatched.Event:Connect(function(victim: Player, cf: CFrame)
+		if not workspace:GetAttribute("RoundActive") or not victim.Parent or victim:GetAttribute("Role") ~= "Dead" then
+			return
+		end
+		-- пауза, чтобы все услышали, как рвётся кокон
+		task.wait(Config.HATCH_RISE_DELAY)
+		if not workspace:GetAttribute("RoundActive") or victim:GetAttribute("Role") ~= "Dead" then
+			return
+		end
+		victim:LoadCharacter() -- новый персонаж (старое тело уже стало коконом)
+		local character = victim.Character
+		if character then
+			character:PivotTo(CFrame.new(cf.Position + Vector3.new(0, 3, 0)) * cf.Rotation)
+		end
+		-- роль ставим ПОСЛЕ возрождения: облик монстра и когти получит уже новый персонаж
+		victim:SetAttribute("Role", "Monster")
+	end)
+end)
+
 while true do
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("Role", nil)
+		player:SetAttribute("CocoonState", nil)
 	end
 
 	-- 1. Ждём игроков
@@ -133,7 +160,7 @@ while true do
 
 	-- 5. Итог
 	if countRole("Monster") == 0 then
-		setStatus(slain and "Талисман сжёг монстра. Выжившие победили!" or "Монстр вышел. Выжившие победили!")
+		setStatus(slain and (countRole("Slain") > 1 and "Талисман сжёг всех монстров. Выжившие победили!" or "Талисман сжёг монстра. Выжившие победили!") or "Монстр вышел. Выжившие победили!")
 	else
 		setStatus("Монстры победили!")
 	end

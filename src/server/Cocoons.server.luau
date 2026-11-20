@@ -1,12 +1,12 @@
 -- Тело убитого и кокон.
 --  1. Выживший умер → его персонаж превращается в тело (Workspace.Bodies), лежит там, где умер.
---  2. Монстр подбирает тело (E), несёт на плече (медленнее, бить нельзя), может бросить (E).
+--  2. Монстр подбирает тело (E), несёт на плече (медленнее, бить нельзя), положить на пол — G.
 --  3. У любого тайника (Workspace.Hideouts) монстр нажимает E «Спрятать тело» → там появляется кокон.
 --     Не спрятал — тело так и лежит, кокона и второго монстра не будет.
 --  4. Кокон вылупится через COCOON_BASE_TIME + (удары − 1) × COCOON_PER_HIT сек.
 --  5. Выжившие рвут кокон, держа E: +1–3% каждые 0.75 сек. 100% — кокон уничтожен.
 --  6. Вылупился — у убитого атрибут CocoonState = "Hatched" и событие ServerStorage.CocoonHatched
---     (второго монстра сделаем в следующем пункте плана).
+--     → RoundManager возрождает убитого на месте кокона вторым монстром.
 --
 -- Атрибуты у убитого игрока: CocoonState = "Body" / "Cocoon" / "Destroyed" / "Hatched"
 -- У тела и кокона: VictimId (UserId), Hits; у кокона ещё HatchAt (время сервера) и Progress (0–100).
@@ -20,7 +20,13 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Wounds = require(script.Parent.Wounds)
 
-local feedback = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("HitFeedback") :: RemoteEvent
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local feedback = remotes:WaitForChild("HitFeedback") :: RemoteEvent
+
+-- G — положить тело на пол (клиент Combat.client шлёт этот запрос, где бы монстр ни стоял)
+local dropRemote = Instance.new("RemoteEvent")
+dropRemote.Name = "DropBody"
+dropRemote.Parent = remotes
 
 local hatchedEvent = Instance.new("BindableEvent")
 hatchedEvent.Name = "CocoonHatched" -- (victim: Player, cframe: CFrame)
@@ -65,6 +71,9 @@ end
 ---------------------------------------------------------------------
 type Carry = { body: Model, weld: WeldConstraint }
 local carrying: { [Player]: Carry } = {}
+-- когда монстр последний раз положил тело: G срабатывает и у подсказки, и через DropBody —
+-- без этой паузы второй сигнал мог бы сразу поднять тело обратно
+local droppedAt: { [Player]: number } = {}
 
 local function setBodyPhysics(body: Model, carried: boolean)
 	for _, part in body:GetDescendants() do
@@ -97,6 +106,7 @@ local function dropBody(monster: Player)
 		return
 	end
 	carrying[monster] = nil
+	droppedAt[monster] = os.clock()
 	monster:SetAttribute("CarryingBody", nil)
 	c.weld:Destroy()
 	if c.body.Parent then
@@ -143,7 +153,7 @@ local function pickUp(monster: Player, body: Model)
 	local prompt = body:FindFirstChild("BodyPrompt", true) :: ProximityPrompt?
 	if prompt then
 		-- бросать на G: на E в это время «Спрятать тело» у тайника (Roblox показывает одну подсказку на клавишу)
-		prompt.ActionText = "Бросить тело"
+		prompt.ActionText = "Положить тело"
 		prompt.KeyboardKeyCode = Enum.KeyCode.G
 		prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
 		prompt.HoldDuration = 0
@@ -210,7 +220,7 @@ local function makeBody(victim: Player, character: Model)
 		local c = carrying[player]
 		if c and c.body == body then
 			dropBody(player)
-		elseif not c then
+		elseif not c and os.clock() - (droppedAt[player] or 0) > 1 then
 			pickUp(player, body)
 		end
 	end)
@@ -535,8 +545,12 @@ Players.PlayerAdded:Connect(onPlayer)
 for _, player in Players:GetPlayers() do
 	onPlayer(player)
 end
+dropRemote.OnServerEvent:Connect(function(player)
+	dropBody(player) -- сам проверит, несёт ли игрок тело
+end)
 Players.PlayerRemoving:Connect(function(player)
 	dropBody(player)
+	droppedAt[player] = nil
 	tearing[player] = nil
 end)
 

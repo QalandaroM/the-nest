@@ -201,3 +201,14 @@ player.CharacterAdded:Connect(onCharacter)
 if player.Character then
 	onCharacter(player.Character)
 end
+
+-- G — монстр кладёт тело на пол (работает, даже если подсказка над телом не видна)
+local dropEvent = remotes:WaitForChild("DropBody") :: RemoteEvent
+UserInputService.InputBegan:Connect(function(input, typing)
+	if typing or input.KeyCode ~= Enum.KeyCode.G then
+		return
+	end
+	if player:GetAttribute("Role") == "Monster" and player:GetAttribute("CarryingBody") then
+		dropEvent:FireServer()
+	end
+end)

@@ -2,6 +2,7 @@
 -- Слои: 1) фоновый трек (Sounds.MusicTrack), громкость медленно «дышит» — то накатывает, то оседает;
 --       2) низкий гул и далёкий хор со стоном (Sounds.MusicAmbience) — играют, даже если трек не загрузился;
 --       3) когда монстр рядом (для выжившего) — всё громче и выше, и стучит сердце.
+--       4) монстр подобрался ближе Config.MONSTER_STINGER_DISTANCE — резкий удар музыки и рёв.
 --       Иногда в тишине — низкий стон, будто дом оседает.
 -- Музыку слышит только этот игрок.
 
@@ -53,26 +54,55 @@ task.delay(10, function()
 	end
 end)
 
--- Насколько близко монстр (0 — далеко, 1 — вплотную). Монстру музыка не тревожнее.
-local function danger(): number
+-- Насколько близко монстр (0 — далеко, 1 — вплотную) и расстояние до ближайшего.
+-- Монстру музыка не тревожнее.
+local function danger(): (number, number)
 	if player:GetAttribute("Role") ~= "Survivor" then
-		return 0
+		return 0, math.huge
 	end
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not root then
-		return 0
+		return 0, math.huge
 	end
 	local best = 0
+	local nearest = math.huge
 	for _, other in Players:GetPlayers() do
 		if other ~= player and other:GetAttribute("Role") == "Monster" then
 			local mroot = other.Character and other.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
 			if mroot then
 				local d = (mroot.Position - root.Position).Magnitude
 				best = math.max(best, 1 - d / Config.MUSIC_DANGER_DISTANCE)
+				nearest = math.min(nearest, d)
 			end
 		end
 	end
-	return math.clamp(best, 0, 1)
+	return math.clamp(best, 0, 1), nearest
+end
+
+-- Резкий страшный звук: удар музыки + рёв. Только для этого игрока.
+local lastStinger = -math.huge
+local wasNear = false
+local function stinger()
+	for _, pair in { { Sounds.MonsterStinger, 0.7, 1 }, { Sounds.MonsterRoar, 0.5, 0.8 } } do
+		local s = Instance.new("Sound")
+		s.SoundId = pair[1]
+		s.Volume = pair[2]
+		s.PlaybackSpeed = pair[3]
+		s.Parent = SoundService
+		s:Play()
+		s.Ended:Once(function()
+			s:Destroy()
+		end)
+	end
+end
+
+-- Монстр сам слышит своё рычание (MonsterVoice.server) — делаем его себе потише
+local function quietOwnGrowl()
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	local growl = head and head:FindFirstChild("MonsterGrowl") :: Sound?
+	if growl and growl.Volume > 0.12 then
+		growl.Volume = 0.12
+	end
 end
 
 local function approach(s: Sound, target: number, k: number)
@@ -89,7 +119,15 @@ task.spawn(function()
 		setPlaying(inRound)
 		if inRound then
 			-- плавно: опасность растёт быстро, спадает медленно
-			local d = danger()
+			local d, nearest = danger()
+			-- монстр подкрался: один раз при входе в радиус, не чаще кулдауна
+			local near = nearest < Config.MONSTER_STINGER_DISTANCE
+			if near and not wasNear and os.clock() - lastStinger > Config.MONSTER_STINGER_COOLDOWN then
+				lastStinger = os.clock()
+				stinger()
+			end
+			wasNear = near
+			quietOwnGrowl()
 			level += (d - level) * (d > level and 0.25 or 0.04)
 			-- «дыхание»: громкость медленно накатывает и оседает (период ~45 сек)
 			local swell = 0.65 + 0.35 * math.sin(t / 45 * math.pi * 2)

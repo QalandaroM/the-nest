@@ -2,7 +2,7 @@
 --  * Тело лежит (CocoonState = "Body"): камера смотрит на тело сверху, надпись «Монстр прячет твоё тело…».
 --  * Кокон (CocoonState = "Cocoon"): вид изнутри — тёмно-красный экран, сердцебиение,
 --    слышно всё рядом (кто рвёт кокон, шаги). Показано время до вылупления и сколько порвали.
---  * Destroyed / Hatched — надпись. Второго монстра сделаем в следующем пункте.
+--  * Destroyed / Hatched — надпись. Вылупился — через пару секунд сервер возродит игрока монстром (RoundManager).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -145,6 +145,6 @@ RunService.RenderStepped:Connect(function(dt)
 		heart:Stop()
 		flesh.BackgroundTransparency = 0.5
 		title.Text = "Ты вылупился…"
-		sub.Text = ""
+		sub.Text = "Сейчас ты встанешь из кокона монстром"
 	end
 end)

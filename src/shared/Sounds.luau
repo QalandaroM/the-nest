@@ -108,6 +108,17 @@ local Sounds = {
 	-- Тихая страшная музыка во время раунда (Music.client.luau)
 	MusicTrack = "rbxassetid://1837606919", -- «Deadhead», Richard Brown (APM Music, Sound Design)
 	MusicAmbience = "rbxassetid://9114228928", -- Eerie Wind: далёкий хор и стон, петля (Pro Sound Effects)
+
+	-- Голос монстра: слышно всем рядом с ним (MonsterVoice.server.luau)
+	MonsterGrowlLoop = "rbxassetid://9113985466", -- Creature Roar Constant Deep Throaty Growls 3 (39 сек, петля)
+	MonsterBreath = {
+		"rbxassetid://9113983944", -- Creature Mix Weird Deep Monster Breathing 1
+		"rbxassetid://9113984054", -- то же, 2
+		"rbxassetid://9113984056", -- то же, 3
+	},
+	-- Резкий звук, когда монстр подобрался близко к выжившему (Music.client.luau)
+	MonsterStinger = "rbxassetid://9047014318", -- Beautiful Horror - Stinger 1 (APM Music)
+	MonsterRoar = "rbxassetid://9113980319", -- Creature Mix Giant Crab Monster Roar Growl 1
 }
 
 return Sounds
