@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Wounds = require(script.Parent.Wounds)
+local MonsterAnims = require(script.Parent.MonsterAnims)
 
 local TOOL_NAME = "Когти"
 
@@ -211,12 +212,15 @@ local function swing(monster: Player, aim: Vector3)
 		aim = root.CFrame.LookVector -- клиент «целится» за спину — бьём просто вперёд
 	end
 
-	-- анимация удара: стандартный скрипт Animate играет взмах, если в инструменте появляется toolanim
-	local anim = Instance.new("StringValue")
-	anim.Name = "toolanim"
-	anim.Value = "Slash"
-	anim.Parent = tool
-	game:GetService("Debris"):AddItem(anim, 1)
+	-- анимация удара: своя из Blender (Attack/Attack2), а если её ID нет в Config —
+	-- стандартный взмах (скрипт Animate играет его, когда в инструменте появляется toolanim)
+	if not MonsterAnims.attack(character) then
+		local anim = Instance.new("StringValue")
+		anim.Name = "toolanim"
+		anim.Value = "Slash"
+		anim.Parent = tool
+		game:GetService("Debris"):AddItem(anim, 1)
+	end
 	Wounds.playAt(root, Sounds.ClawSwing, 0.8)
 
 	-- ищем, во что попали когти (стены тоже ловятся — через них не бьём)

@@ -6,6 +6,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MonsterModel = require(ReplicatedStorage.Shared.MonsterModel)
+local MonsterAnims = require(script.Parent.MonsterAnims)
+
+MonsterAnims.start() -- анимации монстра: бег, удары, скример, переноска тела
 
 local busy: { [Model]: boolean } = {}
 
@@ -26,11 +29,21 @@ local function apply(player: Player)
 			desc.HeightScale = 1.15
 			desc.WidthScale = 0.85
 			desc.DepthScale = 0.9
+			-- обычное блочное тело R15 (без бандлов): под него сделаны меши из Blender
+			desc.Head = 0
+			desc.Torso = 0
+			desc.LeftArm = 0
+			desc.RightArm = 0
+			desc.LeftLeg = 0
+			desc.RightLeg = 0
+			desc.BodyTypeScale = 0
+			desc.ProportionScale = 0
 			humanoid:ApplyDescription(desc)
 		end)
 	end
 	if character.Parent and player:GetAttribute("Role") == "Monster" then
 		MonsterModel.dress(character)
+		MonsterAnims.refresh(player) -- свой бег вместо стандартного (если ID есть в Config)
 	end
 	busy[character] = nil
 end

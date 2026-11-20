@@ -7,6 +7,20 @@
 --   а сверху привариваются детали монстра.
 -- MonsterModel.preview() — в Studio (Command Bar) ставит статую монстра у дороги:
 --   require(game.ReplicatedStorage.Shared.MonsterModel:Clone()).preview()
+--
+-- Два облика:
+--   1) Меши из Blender (blender/monster.py): если в ServerStorage лежит папка/модель
+--      MonsterMeshes с MeshPart-ами M_Head, M_UpperTorso, ... — каждый меш приваривается
+--      к своей части тела R15. Где именно — в MonsterMeshData.luau (его пишет скрипт Blender).
+--   2) Если мешей нет (или персонаж R6) — старый облик из простых деталей (ниже).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
+local meshDataModule = Shared:FindFirstChild("MonsterMeshData")
+local MeshData = meshDataModule and require(meshDataModule)
 
 local MonsterModel = {}
 
@@ -330,6 +344,104 @@ local function toeClaws(p: BasePart, f: Instance, bottom: number)
 end
 
 ---------------------------------------------------------------------
+-- Облик из мешей Blender
+---------------------------------------------------------------------
+-- Папка с импортированными мешами (Studio → 3D Importer → перетащить в ServerStorage)
+local function meshFolder(): Instance?
+	if not MeshData then
+		return nil
+	end
+	return ServerStorage:FindFirstChild("MonsterMeshes") or ReplicatedStorage:FindFirstChild("MonsterMeshes")
+end
+
+-- Ищем меш M_<имя части>. Импорт иногда дописывает к имени хвост — его допускаем
+local function findMesh(folder: Instance, name: string): MeshPart?
+	local fallback: MeshPart? = nil
+	for _, d in folder:GetDescendants() do
+		if d:IsA("MeshPart") then
+			if d.Name == `M_{name}` then
+				return d
+			elseif not fallback and string.match(d.Name, `^M_{name}[^%a]`) then
+				fallback = d
+			end
+		end
+	end
+	return fallback
+end
+
+local function dressMeshes(character: Model, f: Instance, folder: Instance)
+	local turn = CFrame.Angles(0, math.rad(Config.MONSTER_MESH_TURN or 0), 0)
+	for name, d in MeshData.parts do
+		local body = character:FindFirstChild(name)
+		local src = findMesh(folder, name)
+		if body and body:IsA("BasePart") and src then
+			-- персонаж может быть выше/тоньше обычного R15 — растягиваем меш так же
+			local k = body.Size / d.base
+			local m = src:Clone()
+			m.Name = "MonsterPart"
+			m.Anchored = false
+			m.CanCollide = false
+			m.CanQuery = false
+			m.CanTouch = false
+			m.Massless = true
+			m.Size = d.size * k
+			m.CFrame = body.CFrame * CFrame.new(d.offset * k) * turn
+			for _, extra in m:GetChildren() do
+				if extra:IsA("JointInstance") or extra:IsA("WeldConstraint") then
+					extra:Destroy()
+				end
+			end
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = body
+			weld.Part1 = m
+			weld.Parent = m
+			m.Parent = f
+		end
+	end
+	-- красные светящиеся глаза в глазницах
+	local h = character:FindFirstChild("Head")
+	if h and h:IsA("BasePart") then
+		local k = h.Size / MeshData.parts.Head.base
+		-- хищные глаза: узкий косой Neon-разрез, светится слабо (тёмно-красный + тусклый свет)
+		local eyeColor = Config.MONSTER_EYE_COLOR or EYE
+		local size = Config.MONSTER_EYE_SIZE or Vector3.new(0.34, 0.08, 0.06)
+		for i, pos in MeshData.eyes do
+			local a = MeshData.eyeAngles and MeshData.eyeAngles[i] or Vector3.zero
+			local turn = CFrame.Angles(math.rad(a.X), math.rad(a.Y), math.rad(a.Z))
+			local eye = add(h, f, size * k.Y, CFrame.new(pos * k) * turn, eyeColor, Enum.Material.Neon, "ball")
+			eye.Transparency = Config.MONSTER_EYE_TRANSPARENCY or 0
+			if i == 1 then
+				local light = Instance.new("PointLight")
+				light.Color = eyeColor
+				light.Brightness = Config.MONSTER_EYE_LIGHT_BRIGHTNESS or 0.5
+				light.Range = Config.MONSTER_EYE_LIGHT_RANGE or 4
+				light.Shadows = false
+				light.Parent = eye
+			end
+		end
+	end
+	-- мухи вьются вокруг
+	local t = character:FindFirstChild("UpperTorso")
+	if t and t:IsA("BasePart") then
+		local flies = Instance.new("Attachment")
+		flies.Name = "Flies"
+		flies.Position = MeshData.flies * (t.Size / MeshData.parts.UpperTorso.base)
+		flies.Parent = t
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Color = ColorSequence.new(Color3.fromRGB(10, 10, 10))
+		emitter.LightInfluence = 1
+		emitter.Size = NumberSequence.new(0.09)
+		emitter.Lifetime = NumberRange.new(1.5, 3)
+		emitter.Rate = 6
+		emitter.Speed = NumberRange.new(1, 2.5)
+		emitter.SpreadAngle = Vector2.new(180, 180)
+		emitter.Drag = 1.5
+		emitter.Acceleration = Vector3.new(0, 0.3, 0)
+		emitter.Parent = flies
+	end
+end
+
+---------------------------------------------------------------------
 -- Надеть облик на персонажа
 ---------------------------------------------------------------------
 function MonsterModel.undress(character: Model)
@@ -360,6 +472,13 @@ function MonsterModel.dress(character: Model)
 
 	local function part(name: string): BasePart?
 		return character:FindFirstChild(name) :: BasePart?
+	end
+	-- есть меши из Blender и персонаж R15 — надеваем их
+	local folder = meshFolder()
+	if folder and part("UpperTorso") then
+		dressMeshes(character, f, folder)
+		f.Parent = character
+		return f
 	end
 	local h = part("Head")
 	if h then
@@ -432,6 +551,21 @@ function MonsterModel.preview(cf: CFrame?): Model
 	local m = Instance.new("Model")
 	m.Name = "MonsterPreview"
 	local base = cf or CFrame.new(0, 0, -100)
+	if meshFolder() then
+		-- R15-болванка в позе «статуя» и меши из Blender
+		for name, d in MeshData.parts do
+			local part = Instance.new("Part")
+			part.Name = name
+			part.Size = d.base
+			part.Anchored = true
+			part.CFrame = base * CFrame.new(d.rest)
+			part.Parent = m
+		end
+		MonsterModel.dress(m)
+		m.Parent = workspace
+		print("THE NEST: статуя монстра (меши Blender) стоит у дороги (Workspace.MonsterPreview)")
+		return m
+	end
 	local function p(name: string, size: Vector3, off: Vector3)
 		local part = Instance.new("Part")
 		part.Name = name
