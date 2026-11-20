@@ -1,7 +1,10 @@
 -- Квесты на талисман и сам талисман — единственное, что ранит монстра.
 --
 -- Талисман (оберег Марты) разделён на 3 части, у каждой своя загадка:
---   1. ЦЕПОЧКА — в сейфе в спальне Томаса. Код из 4 цифр каждый раунд новый,
+-- Каждый раунд сейф, ящик и алтарь встают у случайной стены в случайной комнате (QuestPlacer),
+-- записки и рисунок Лили — в случайные места, код и порядок свечей — новые.
+--
+--   1. ЦЕПОЧКА — в сейфе. Код из 4 цифр каждый раунд новый,
 --      цифры написаны в 4 записках, разбросанных по дому (Workspace.QuestItems).
 --   2. КАМЕНЬ — в ящике Томаса у генератора (подвал). Электрозамок открывается,
 --      только когда щиток во дворе починен (workspace.Power = true). Сначала нужен ключ от подвала
@@ -26,6 +29,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local TalismanModel = require(ReplicatedStorage.Shared.TalismanModel)
+local QuestPlacer = require(script.Parent.QuestPlacer)
 
 local quest = workspace:WaitForChild("Quest", 15)
 if not quest then
@@ -62,6 +66,7 @@ local safeOpen = false
 local chestOpen = false
 local safeCooldown: { [Player]: number } = {}
 local talismanCooldown: { [Player]: number } = {}
+local relocate: () -> () -- ниже: переставляет сейф, ящик и алтарь
 
 ---------------------------------------------------------------------
 -- Помощники
@@ -255,7 +260,7 @@ local function placeNote(pos: Vector3, text: string, name: string)
 	CollectionService:AddTag(note, "Note")
 end
 
-local function setupCodeNotes()
+local function setupCodeNotes(): { BasePart }
 	local spots = quest:FindFirstChild("CodeNotes")
 	local list = spots and spots:GetChildren() or {}
 	-- перемешиваем точки и берём первые 4
@@ -268,9 +273,10 @@ local function setupCodeNotes()
 		local spot = list[i] :: BasePart?
 		if spot then
 			local digit = code:sub(i, i)
-			placeNote(spot.Position, `Обрывок записки Томаса: «Сейф в спальне. {ordinal[i]} цифра — {digit}»`, `CodeNote{i}`)
+			placeNote(spot.Position, `Обрывок записки Томаса: «Код от сейфа. {ordinal[i]} цифра — {digit}»`, `CodeNote{i}`)
 		end
 	end
+	return { table.unpack(list, 5) } -- свободные точки
 end
 
 if safe and safeDoor and safeBody then
@@ -668,6 +674,44 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 ---------------------------------------------------------------------
+-- Случайные места для сейфа, ящика и алтаря
+---------------------------------------------------------------------
+-- Комнаты-кандидаты: точки записок + исходные места предметов (спальня, генераторная, библиотека)
+local roomSpots: { Vector3 } = {}
+do
+	local spots = quest:FindFirstChild("CodeNotes")
+	for _, s in (spots and spots:GetChildren() or {}) do
+		if s:IsA("BasePart") then
+			table.insert(roomSpots, s.Position)
+		end
+	end
+	for _, body in { safeBody, chestBody, altarBody } do
+		if body then
+			-- точка в 3 studs перед предметом, на высоте точек записок (пол + 5)
+			table.insert(roomSpots, body.Position + body.CFrame.LookVector * 3 + Vector3.new(0, 3, 0))
+		end
+	end
+end
+
+relocate = function()
+	local used = {}
+	local function move(m: Model?, body: BasePart?, bodyY: number, size: Vector3)
+		if m and body then
+			local room = QuestPlacer.place({ model = m, body = body, bodyY = bodyY, size = size }, roomSpots, used)
+			if not room then
+				warn(`Talisman: не нашлось места для {m.Name}, остаётся на старом`)
+			end
+		end
+	end
+	move(safe, safeBody, 1.8, Vector3.new(3.2, 3.7, 2.7))
+	move(chest, chestBody, 1, Vector3.new(3.8, 2.4, 2.4))
+	move(altar, altarBody, 1.3, Vector3.new(5.4, 3, 3))
+	-- закрытые положения дверцы сейфа и крышки ящика теперь в новом месте
+	safeDoorClosed = safeDoor and safeDoor.CFrame
+	lidClosed = chestLid and chestLid.CFrame
+end
+
+---------------------------------------------------------------------
 -- Новый раунд: всё прячем заново, новый код и новый порядок свечей
 ---------------------------------------------------------------------
 local function reset()
@@ -712,6 +756,7 @@ local function reset()
 	local chestPrompt = chestBody and chestBody:FindFirstChildOfClass("ProximityPrompt")
 	hide(chestPrompt, false)
 	refreshLock()
+	relocate()
 	-- алтарь снова принимает части
 	hide(altarBody and altarBody:FindFirstChildOfClass("ProximityPrompt"), false)
 
@@ -732,8 +777,8 @@ local function reset()
 	end
 
 	-- записки
-	setupCodeNotes()
-	local ritualSpot = quest:FindFirstChild("RitualNote") :: BasePart?
+	local free = setupCodeNotes()
+	local ritualSpot = free[1] or quest:FindFirstChild("RitualNote") :: BasePart?
 	if ritualSpot then
 		placeNote(ritualSpot.Position, ritualText(), "RitualNote")
 	end

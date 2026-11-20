@@ -117,6 +117,11 @@ task.spawn(function()
 			local hp = math.max(0, math.ceil(humanoid.Health))
 			table.insert(lines, `Здоровье: <font color="{hp > 50 and "#c8e6a0" or "#e67a64"}">{hp}</font>`)
 		end
+		if role == "Monster" and player:GetAttribute("Frozen") then
+			table.insert(lines, `<font color="#fff2a0">СВЕТ! Ты замер и не можешь бить</font>`)
+		elseif role == "Monster" and (player:GetAttribute("FreezeImmuneUntil") or 0) > workspace:GetServerTimeNow() then
+			table.insert(lines, `<font size="16" color="#c8a8a0">Свет пока не действует</font>`)
+		end
 		if role == "Monster" then
 			local left = (player:GetAttribute("ClawReadyAt") or 0) - workspace:GetServerTimeNow()
 			if left > 0 then

@@ -185,8 +185,8 @@ end
 ---------------------------------------------------------------------
 local function swing(monster: Player, aim: Vector3)
 	-- проверки: роль, живой, когти в руках, задержка
-	if monster:GetAttribute("Role") ~= "Monster" or not workspace:GetAttribute("RoundActive") or monster:GetAttribute("CarryingBody") then
-		return
+	if monster:GetAttribute("Role") ~= "Monster" or not workspace:GetAttribute("RoundActive") or monster:GetAttribute("CarryingBody") or monster:GetAttribute("Frozen") then
+		return -- с телом на плече или замерший в свете фонарика бить нельзя
 	end
 	local character = monster.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
