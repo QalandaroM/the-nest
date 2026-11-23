@@ -721,17 +721,24 @@ def build_lower_torso():
 def build_upper_arm(name, side):
     p = Piece(name)
     p.push(T(0, -0.04, ARM_Z))
-    p.bone((0, 0.5, 0), (0, -0.56, 0), 0.13, "BONE_DARK", r2=0.11)
+    # плечевая кость: сверху обросла корой, снизу голая — видно кость до локтя
+    p.bone((0, 0.5, 0), (0, -0.56, 0), 0.12, "BONE", r2=0.1)
     p.ball((0, 0.5, 0), (0.2, 0.19, 0.2), "BONE")
-    p.tube([(0, 0.4, 0), (0, 0.1, 0), (0, -0.2, 0), (0, -0.45, 0)], [0.17, 0.2, 0.19, 0.16], "BARK", sides=12, lump=0.1, step=0.06)
-    p.vine(0.42, -0.45, 0.2, 1.4, phase=side)
-    p.nodules(0.3, -0.35, 0.19, 3, side)
-    for k, y in enumerate((0.25, -0.05, -0.32)):
-        p.wrap(y, 0.15, 0.21, "BARK" if k % 2 else "BARK_DARK")
-    p.ball((side * 0.08, 0.1, 0.12), (0.18, 0.2, 0.15), "MOSS_DARK", lump=0.2)
-    p.ball((-side * 0.1, -0.25, -0.1), (0.12, 0.14, 0.1), "MOSS", lump=0.2)
-    p.skull((side * 0.25, 0.05, -0.02), 0.38, rot=RY(-side * 90))
-    p.spike((side * 0.18, -0.2, 0.05), (side, 0.4, 0.2), 0.42, 0.055)
+    p.ball((0, -0.5, 0.02), (0.14, 0.12, 0.13), "BONE", lump=0.05)  # бугор кости у локтя
+    p.tube([(0, 0.42, 0), (0, 0.15, 0), (0, -0.12, 0)], [0.18, 0.21, 0.15], "BARK", sides=12, lump=0.12, step=0.05)
+    p.vine(0.42, -0.4, 0.17, 1.4, phase=side, thick=0.024)
+    p.nodules(0.3, -0.05, 0.19, 3, side)
+    for k, y in enumerate((0.3, 0.02)):
+        p.wrap(y, 0.13, 0.21, "BARK" if k % 2 else "BARK_DARK")
+    # жилы вдоль голой кости
+    for k in range(2):
+        a = side * (0.6 + k * 1.4)
+        p.tube([(0.1 * math.cos(a), -0.1, 0.1 * math.sin(a)), (0.13 * math.cos(a), -0.3, 0.13 * math.sin(a)), (0.1 * math.cos(a), -0.48, 0.1 * math.sin(a))],
+               [0.018, 0.024, 0.016], "FLESH", sides=5, step=0.05)
+    p.ball((side * 0.08, 0.15, 0.12), (0.18, 0.2, 0.15), "MOSS_DARK", lump=0.2)
+    p.ball((-side * 0.1, 0.1, -0.1), (0.12, 0.14, 0.1), "MOSS", lump=0.2)
+    p.skull((side * 0.25, 0.1, -0.02), 0.38, rot=RY(-side * 90))
+    p.spike((side * 0.11, -0.3, 0.05), (side, 0.4, 0.2), 0.38, 0.05)
     p.spike((side * 0.16, 0.3, 0.1), (side, 0.6, 0.4), 0.32, 0.05)
     p.pop()
     return p
@@ -740,22 +747,31 @@ def build_upper_arm(name, side):
 def build_lower_arm(name, side):
     p = Piece(name)
     p.push(T(0, 0, ARM_Z))
-    p.bone((0, 0.5, 0), (0, -0.5, 0), 0.1, "BONE_DARK", r2=0.09)
-    p.ball((0, 0.5, 0), (0.15, 0.15, 0.15), "BONE")  # локоть
-    # толстый наруч из коры, шире к запястью
-    p.tube([(0, 0.36, 0), (0, 0.1, 0), (0, -0.18, 0), (0, -0.48, 0)], [0.17, 0.22, 0.26, 0.24], "BARK_DARK", sides=12, lump=0.1, step=0.06)
-    p.wrap(-0.05, 0.12, 0.25, "BARK")
-    p.vine(0.38, -0.48, 0.24, 1.6, phase=2 + side)
-    p.nodules(0.25, -0.4, 0.24, 4, side)
-    # ещё одна кость торчит из наруча назад
-    p.bone((side * 0.1, -0.25, 0.18), (side * 0.2, -0.05, 0.42), 0.035, "BONE")
-    p.ball((side * 0.1, -0.1, -0.12), (0.15, 0.18, 0.12), "MOSS_DARK", lump=0.2)
-    p.ball((-side * 0.12, 0.15, 0.08), (0.1, 0.12, 0.09), "MOSS", lump=0.2)
+    p.ball((0, 0.5, 0), (0.16, 0.16, 0.16), "BONE")  # локоть
+    # две голые кости предплечья (лучевая и локтевая), чуть расходятся посередине
+    for dx, dz, r in ((-0.075, 0.03, 0.055), (0.075, -0.03, 0.046)):
+        p.tube([(dx * 0.5, 0.48, dz), (dx * 1.15, 0.0, dz * 1.6), (dx * 0.8, -0.5, dz)], [r * 1.2, r * 0.8, r * 1.15], "BONE", sides=8, step=0.06)
+        p.ball((dx * 0.8, -0.5, dz), (r * 1.45, r * 1.3, r * 1.45), "BONE_DARK", segs=8, rings=5)
+    # кора только у локтя, ниже кости открыты; обрывок коры на запястье
+    p.tube([(0, 0.44, 0), (0, 0.22, 0), (0, 0.0, 0)], [0.2, 0.25, 0.15], "BARK_DARK", sides=12, lump=0.12, step=0.05)
+    p.wrap(0.3, 0.12, 0.25, "BARK")
+    p.wrap(-0.44, 0.07, 0.12, "BARK_DARK")
+    # жилы и плоть натянуты между костями
+    for k in range(3):
+        y0 = rng.uniform(-0.08, -0.36)
+        p.tube([(-0.07, y0, 0.03), (0.0, y0 - 0.05, rng.uniform(-0.05, 0.05)), (0.07, y0 - 0.1, -0.03)], [0.016, 0.022, 0.016], "FLESH" if k else "BLOOD", sides=5)
+    p.vine(0.42, -0.45, 0.14, 1.3, phase=2 + side, thick=0.022)
+    p.nodules(0.38, 0.06, 0.24, 3, side)
+    # ещё одна кость торчит из коры назад
+    p.bone((side * 0.1, 0.1, 0.18), (side * 0.2, 0.3, 0.42), 0.035, "BONE")
+    p.ball((side * 0.1, 0.18, -0.12), (0.15, 0.16, 0.12), "MOSS_DARK", lump=0.2)
+    p.ball((-side * 0.12, 0.32, 0.08), (0.1, 0.12, 0.09), "MOSS", lump=0.2)
     for k in range(5):
-        y = 0.3 - k * 0.19
-        p.spike((side * 0.2, y, 0.03), (side, 0.5, rng.uniform(-0.2, 0.3)), rng.uniform(0.32, 0.48), 0.05)
-    p.bone((side * 0.08, 0.15, -0.2), (side * 0.15, 0.38, -0.36), 0.04, "BONE")
-    p.skull((side * 0.27, -0.22, 0.02), 0.32, rot=RY(-side * 90))
+        y = 0.38 - k * 0.19
+        base = 0.22 if y > 0.02 else 0.1  # на коре шипы снаружи, ниже растут прямо из кости
+        p.spike((side * base, y, 0.03), (side, 0.5, rng.uniform(-0.2, 0.3)), rng.uniform(0.3, 0.45), 0.05)
+    p.bone((side * 0.08, 0.2, -0.2), (side * 0.15, 0.42, -0.36), 0.04, "BONE")
+    p.skull((side * 0.27, 0.2, 0.02), 0.3, rot=RY(-side * 90))
     for k in range(2):
         top = (rng.uniform(-0.1, 0.1), -0.42, 0.15)
         ln = rng.uniform(0.3, 0.6)
@@ -767,26 +783,46 @@ def build_lower_arm(name, side):
 def build_hand(name, side):
     p = Piece(name)
     p.push(T(0, 0, ARM_Z))
-    p.bone((0, 0.12, 0), (0, -0.38, 0), 0.09, "BONE_DARK")
-    p.ball((0, -0.5, -0.02), (0.23, 0.2, 0.15), "BARK_DARK", lump=0.1)
-    # 4 длинных пальца веером и когти-серпы, загнутые внутрь (к ногам)
+    # концы костей предплечья и кучка мелких косточек запястья
+    for dx in (-0.06, 0.06):
+        p.bone((dx, 0.12, 0), (dx * 0.8, -0.26, 0), 0.045, "BONE", knob=False)
+    for k in range(6):
+        a = k / 6 * 2 * math.pi
+        p.ball((0.07 * math.cos(a), -0.3 + 0.03 * math.sin(2 * a), 0.06 * math.sin(a)), (0.055, 0.05, 0.05), "BONE_DARK", segs=7, rings=5, lump=0.1)
+    p.ball((0, -0.4, -0.02), (0.13, 0.07, 0.1), "BARK_DARK", lump=0.15)  # остаток высохшей ладони
+    # 4 костлявых пальца: пястная кость + 3 фаланги с костяшками, каждый сустав
+    # сгибается сильнее — пальцы загнуты крючьями внутрь (к ногам), разной длины
+    down = Vector((0, -1, 0))
+    inward = Vector((-side, 0, -0.35)).normalized()
+    lengths = (0.85, 1.0, 0.95, 0.78)
     for i in range(4):
         k = (i - 1.5) / 1.5
-        pts = [
-            (side * 0.02, -0.6, k * 0.14 - 0.02),
-            (side * 0.07, -0.88, k * 0.24 - 0.05),
-            (side * 0.04, -1.16, k * 0.31 - 0.08),
-        ]
-        p.tube(pts, [0.07, 0.062, 0.055], "BONE_DARK", sides=6)
-        for q in pts[1:]:
-            p.ball(q, (0.075, 0.075, 0.075), "BARK_DARK", segs=6, rings=4)
-        claw = [pts[2], (-side * 0.05, -1.42, k * 0.34 - 0.12), (-side * 0.22, -1.64, k * 0.32 - 0.22), (-side * 0.45, -1.74, k * 0.28 - 0.34)]
-        p.tube(claw[:3], [0.06, 0.048, 0.028], "CLAW", sides=6)
-        p.tube(claw[2:], [0.028, 0], "BLOOD", sides=6)  # кончики в засохшей крови
-    # большой палец спереди
-    thumb = [(0, -0.5, -0.14), (side * -0.05, -0.78, -0.32), (side * -0.16, -1.0, -0.42), (side * -0.34, -1.14, -0.4)]
-    p.tube(thumb[:2], [0.065, 0.055], "BONE_DARK", sides=6)
-    p.tube(thumb[1:], [0.055, 0.03, 0], "CLAW", sides=6)
+        spread = Vector((side * 0.05 * k, 0, k * 0.32))
+        pos = Vector((side * 0.02, -0.38, k * 0.1 - 0.02))
+        for s_len, curl, r in ((0.28, 0, 0.05), (0.24, 14, 0.047), (0.2, 32, 0.042), (0.15, 55, 0.036)):
+            a = math.radians(curl)
+            d = (down * math.cos(a) + inward * math.sin(a) + spread * (1 - curl / 90)).normalized()
+            nxt = pos + d * s_len * lengths[i]
+            p.bone(pos, nxt, r, "BONE", knob=False, r2=r * 0.8)
+            p.ball(nxt, (r * 1.45, r * 1.45, r * 1.45), "BONE_DARK", segs=7, rings=5)  # костяшка
+            pos = nxt
+        # коготь-крюк продолжает изгиб пальца
+        claw = [pos]
+        for curl, ln in ((78, 0.15), (108, 0.13), (138, 0.11)):
+            a = math.radians(curl)
+            claw.append(claw[-1] + (down * math.cos(a) + inward * math.sin(a)).normalized() * ln * lengths[i])
+        p.tube(claw[:3], [0.045, 0.036, 0.022], "CLAW", sides=6, step=0.03)
+        p.tube(claw[2:], [0.022, 0], "BLOOD", sides=6, step=0.03)  # кончики в засохшей крови
+    # большой палец: две фаланги и коготь, смотрит вперёд-внутрь
+    pos = Vector((0, -0.36, -0.14))
+    thumb_dir = (down * 0.55 + Vector((0, 0, -0.75)) + inward * 0.3).normalized()
+    for s_len, r in ((0.2, 0.048), (0.16, 0.042)):
+        nxt = pos + thumb_dir * s_len
+        p.bone(pos, nxt, r, "BONE", knob=False, r2=r * 0.85)
+        p.ball(nxt, (r * 1.45, r * 1.45, r * 1.45), "BONE_DARK", segs=7, rings=5)
+        pos = nxt
+        thumb_dir = (thumb_dir + inward * 0.4 + down * 0.2).normalized()
+    p.tube([pos, pos + thumb_dir * 0.13, pos + (thumb_dir + inward * 0.8).normalized() * 0.24], [0.04, 0.026, 0], "CLAW", sides=6, step=0.03)
     p.pop()
     return p
 
@@ -1278,10 +1314,10 @@ def run_pose(p):
 def carry_pose(p):
     c, s = math.cos(p), math.sin(p)
     rot = {
-        # правая рука держит тело на плече
-        "RightUpperArm": (118, 0, 12),
-        "RightLowerArm": (125, 0, 0),
-        "RightHand": (40, 0, 0),
+        # правая рука держит тело, лежащее на плечах: плечо вперёд, предплечье вверх к телу
+        "RightUpperArm": (90 + 3 * s, 0, 10),
+        "RightLowerArm": (120, 0, 0),
+        "RightHand": (30, 0, 0),
         # левая волочится и покачивается
         "LeftUpperArm": (12 + 12 * c, 0, 6),
         "LeftLowerArm": (18, 0, 0),
@@ -1300,24 +1336,28 @@ def carry_pose(p):
 def scream_keys():
     keys = [
         (0, {"UpperTorso": (-12, 0, 0)}, {}),
-        # вдох: голова запрокинута, руки начинают расходиться
-        (5, {"UpperTorso": (8, 0, 0), "Head": (38, 0, 0), "LeftUpperArm": (30, 0, 50), "RightUpperArm": (30, 0, -50),
-             "LeftLowerArm": (40, 0, 0), "RightLowerArm": (40, 0, 0)}, {"LowerTorso": (0, 0.05, 0.15)}),
+        # набирает воздух: медленно запрокидывает голову, руки расходятся
+        (8, {"UpperTorso": (10, 0, 0), "Head": (40, 0, -6), "LeftUpperArm": (30, 0, 48), "RightUpperArm": (30, 0, -48),
+             "LeftLowerArm": (50, 0, 0), "RightLowerArm": (50, 0, 0), "LeftUpperLeg": (-6, 0, 0), "RightUpperLeg": (-6, 0, 0)},
+         {"LowerTorso": (0, 0.06, 0.25)}),
     ]
-    # рывок к камере и тряска головы
-    for i, f in enumerate(range(9, 41, 2)):
-        j = 1 if i % 2 == 0 else -1
+    # резкий рывок вперёд, потом рёв: мелкая плавная дрожь (ключ на каждый кадр — без «лагов»),
+    # голова медленно склоняется набок
+    for f in range(12, 43):
+        t = f - 12
+        tilt = min(1.0, t / 20) * 12  # медленный жуткий наклон головы
         keys.append((f, {
-            "UpperTorso": (-30, 4 * j, 0),
-            "Head": (-20 + 5 * j, 0, 14 * j),
-            "LeftUpperArm": (65 + 5 * j, 0, 75),
-            "RightUpperArm": (65 - 5 * j, 0, -75),
-            "LeftLowerArm": (15, 0, 0), "RightLowerArm": (15, 0, 0),
-            "LeftHand": (-40, 0, 0), "RightHand": (-40, 0, 0),
-            "LeftUpperLeg": (25, 0, 0), "LeftLowerLeg": (-35, 0, 0),
-            "RightUpperLeg": (-15, 0, 0),
-        }, {"LowerTorso": (0, -0.12, -0.9)}))
-    keys.append((48, {"UpperTorso": (-12, 0, 0)}, {}))
+            "UpperTorso": (-32 + 1.5 * math.sin(t * 0.9), 2 * math.sin(t * 0.7), 0),
+            "Head": (-22 + 3 * math.sin(t * 1.3), 0, tilt + 3 * math.sin(t * 1.9)),
+            "LeftUpperArm": (66 + 2 * math.sin(t * 1.1), 0, 76 + 3 * math.sin(t * 1.6)),
+            "RightUpperArm": (66 + 2 * math.sin(t * 1.2 + 1), 0, -76 - 3 * math.sin(t * 1.5 + 1)),
+            "LeftLowerArm": (22, 0, 0), "RightLowerArm": (22, 0, 0),
+            "LeftHand": (-35 + 4 * math.sin(t * 2.1), 0, 0), "RightHand": (-35 + 4 * math.sin(t * 2.0 + 1), 0, 0),
+            "LeftUpperLeg": (26, 0, 0), "LeftLowerLeg": (-36, 0, 0),
+            "RightUpperLeg": (-14, 0, 0), "RightLowerLeg": (-6, 0, 0),
+        }, {"LowerTorso": (0, -0.14, -0.85)}))
+    # медленно приходит в себя
+    keys.append((56, {"UpperTorso": (-12, 0, 0)}, {}))
     return keys
 
 
@@ -1330,11 +1370,12 @@ ANIMS = {
         (0, {"UpperTorso": (-12, 0, 0)}, {}),
         (6, {"UpperTorso": (6, -25, 0), "Head": (10, 0, 0), "RightUpperArm": (150, 0, 35), "RightLowerArm": (70, 0, 0),
              "RightHand": (-30, 0, 0), "LeftUpperArm": (20, 0, 0)}, {"LowerTorso": (0, 0, 0.15)}),
-        (10, {"UpperTorso": (-25, 30, 0), "Head": (-15, 0, 0), "RightUpperArm": (35, 0, 45), "RightLowerArm": (5, 0, 0),
-              "RightHand": (30, 0, 0), "LeftUpperArm": (-10, 0, 0), "LeftUpperLeg": (20, 0, 0), "LeftLowerLeg": (-25, 0, 0)},
+        # удар: локоть остаётся согнутым, кисть с когтями «загребает» (рука не выпрямляется палкой)
+        (10, {"UpperTorso": (-25, 30, 0), "Head": (-15, 0, 0), "RightUpperArm": (45, 0, 40), "RightLowerArm": (38, 0, 0),
+              "RightHand": (40, 0, 0), "LeftUpperArm": (-10, 0, 0), "LeftUpperLeg": (20, 0, 0), "LeftLowerLeg": (-25, 0, 0)},
          {"LowerTorso": (0, -0.1, -0.4)}),
-        (13, {"UpperTorso": (-22, 35, 0), "Head": (-12, 0, 0), "RightUpperArm": (10, 0, 60), "RightLowerArm": (20, 0, 0),
-              "LeftUpperLeg": (15, 0, 0), "LeftLowerLeg": (-20, 0, 0)}, {"LowerTorso": (0, -0.1, -0.35)}),
+        (13, {"UpperTorso": (-22, 35, 0), "Head": (-12, 0, 0), "RightUpperArm": (15, 0, 55), "RightLowerArm": (55, 0, 0),
+              "RightHand": (45, 0, 0), "LeftUpperLeg": (15, 0, 0), "LeftLowerLeg": (-20, 0, 0)}, {"LowerTorso": (0, -0.1, -0.35)}),
         (20, {"UpperTorso": (-12, 0, 0)}, {}),
     ],
     # прыжок-выпад двумя лапами и укус
@@ -1343,10 +1384,11 @@ ANIMS = {
         (7, {"UpperTorso": (10, 0, 0), "Head": (22, 0, 0), "LeftUpperArm": (150, 0, -35), "RightUpperArm": (150, 0, 35),
              "LeftLowerArm": (60, 0, 0), "RightLowerArm": (60, 0, 0)}, {"LowerTorso": (0, -0.1, 0.25)}),
         (12, {"UpperTorso": (-35, 0, 0), "Head": (-30, 0, 0), "LeftUpperArm": (50, 0, -30), "RightUpperArm": (50, 0, 30),
-              "LeftLowerArm": (10, 0, 0), "RightLowerArm": (10, 0, 0), "LeftHand": (30, 0, 0), "RightHand": (30, 0, 0),
+              "LeftLowerArm": (32, 0, 0), "RightLowerArm": (32, 0, 0), "LeftHand": (40, 0, 0), "RightHand": (40, 0, 0),
               "LeftUpperLeg": (30, 0, 0), "LeftLowerLeg": (-40, 0, 0), "RightUpperLeg": (-20, 0, 0), "RightLowerLeg": (-10, 0, 0)},
          {"LowerTorso": (0, -0.25, -0.7)}),
         (16, {"UpperTorso": (-32, 0, 0), "Head": (-24, 0, 6), "LeftUpperArm": (45, 0, -28), "RightUpperArm": (45, 0, 28),
+              "LeftLowerArm": (40, 0, 0), "RightLowerArm": (40, 0, 0), "LeftHand": (40, 0, 0), "RightHand": (40, 0, 0),
               "LeftUpperLeg": (28, 0, 0), "LeftLowerLeg": (-38, 0, 0), "RightUpperLeg": (-18, 0, 0)},
          {"LowerTorso": (0, -0.25, -0.65)}),
         (24, {"UpperTorso": (-12, 0, 0)}, {}),

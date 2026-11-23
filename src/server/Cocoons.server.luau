@@ -141,10 +141,19 @@ local function pickUp(monster: Player, body: Model)
 		return
 	end
 	setBodyPhysics(body, true)
-	-- кладём поперёк плеч
-	body:PivotTo(root.CFrame * CFrame.new(0, 1.7, 0.4) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(90), 0, 0))
+	-- кладём поперёк плеч, животом вниз, голова свисает влево (как в анимации Carry).
+	-- Крепим к UpperTorso: тело качается вместе с плечами монстра
+	local torso = monster.Character and monster.Character:FindFirstChild("UpperTorso") :: BasePart?
+	local anchor: BasePart = torso or root
+	if torso then
+		local k = torso.Size / Vector3.new(2, 1.6, 1) -- монстр выше/тоньше обычного R15
+		local across = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, 0, -1), Vector3.new(-1, 0, 0), Vector3.new(0, 1, 0))
+		body:PivotTo(torso.CFrame * CFrame.new(Config.CARRY_BODY_OFFSET * k) * CFrame.Angles(0, 0, math.rad(Config.CARRY_BODY_TILT)) * across)
+	else
+		body:PivotTo(root.CFrame * CFrame.new(0, 1.7, 0.4) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(90), 0, 0))
+	end
 	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = root
+	weld.Part0 = anchor
 	weld.Part1 = bodyRoot
 	weld.Parent = bodyRoot
 	carrying[monster] = { body = body, weld = weld }
