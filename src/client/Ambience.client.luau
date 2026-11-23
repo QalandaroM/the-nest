@@ -1,12 +1,15 @@
 -- Атмосфера: фоновые звуки и случайные пугающие звуки вдалеке.
 -- На улице — сверчки, в доме — тихий гул ветра. Каждые 15–45 сек — сова, гром,
--- скрип дома, стон труб или далёкий крик. Звуки слышит только этот игрок.
+-- скрип дома, стон труб или далёкий крик. Во время раунда в доме и подвале — давящий гул
+-- волнами, с каждой смертью выжившего он давит сильнее.
+-- Звуки слышит только этот игрок.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local player = Players.LocalPlayer
 local rng = Random.new()
@@ -55,6 +58,47 @@ task.spawn(function()
 		local wTarget = inside and (wind:GetAttribute("Target") :: number) or 0.05
 		crickets.Volume += (cTarget - crickets.Volume) * 0.3
 		wind.Volume += (wTarget - wind.Volume) * 0.3
+	end
+end)
+
+-- Давящий гул во время раунда: медленно наползает (долго нарастает),
+-- потом быстро отпускает — и снова. Только в доме и подвале (на улице — сверчки).
+-- С каждым убитым выжившим пик волны громче: чем меньше живых, тем сильнее давит.
+local drone = loop(Sounds.DreadDrone, 0)
+
+-- Сколько выживших уже убито в этом раунде (роль "Dead")
+local function deaths(): number
+	local n = 0
+	for _, p in Players:GetPlayers() do
+		if p:GetAttribute("Role") == "Dead" then
+			n += 1
+		end
+	end
+	return n
+end
+
+task.spawn(function()
+	local phase = 0 -- где мы сейчас на волне: 0 → 1
+	local wave = Config.DREAD_DRONE_WAVE
+	while true do
+		local dt = task.wait(0.2)
+		phase += dt / wave
+		if phase >= 1 then
+			phase -= 1
+			wave = Config.DREAD_DRONE_WAVE * rng:NextNumber(0.7, 1.3) -- каждая волна немного разной длины
+		end
+		-- 80% времени гул нарастает (сначала незаметно, потом всё сильнее), 20% — стихает
+		local k = if phase < 0.8 then (phase / 0.8) ^ 2 else 1 - (phase - 0.8) / 0.2
+		local target = 0
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local underground = root ~= nil and root.Position.Y < -2
+		local inside = root ~= nil and (underground or isIndoors(root))
+		if workspace:GetAttribute("RoundActive") and inside then
+			local peak = math.min(Config.DREAD_DRONE_MAX + deaths() * Config.DREAD_DRONE_PER_DEATH, Config.DREAD_DRONE_CAP)
+			target = Config.DREAD_DRONE_MIN + (peak - Config.DREAD_DRONE_MIN) * k
+		end
+		-- плавно: выйдешь на улицу — гул за пару секунд стихнет
+		drone.Volume += (target - drone.Volume) * 0.15
 	end
 end)
 

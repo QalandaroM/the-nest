@@ -120,6 +120,8 @@ local Sounds = {
 	MonsterStinger = "rbxassetid://9043346594", -- HORROR SCREAM 16 (APM Music): скримеры — монстр подкрался, летучие мыши
 	MonsterRoar = "rbxassetid://9113980319", -- Creature Mix Giant Crab Monster Roar Growl 1
 	CocoonBraam = "rbxassetid://9043342758", -- DARK BRAAM 11 (APM Music): монстр спрятал тело, появился кокон
+	-- Давящий фоновый гул во время раунда, накатывает волнами (Ambience.client.luau)
+	DreadDrone = "rbxassetid://9043359699", -- DARK DRONE 12 (APM Music): низкий висящий гул, 340 сек
 }
 
 return Sounds
