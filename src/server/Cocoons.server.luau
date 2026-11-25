@@ -145,10 +145,15 @@ local function pickUp(monster: Player, body: Model)
 	-- Крепим к UpperTorso: тело качается вместе с плечами монстра
 	local torso = monster.Character and monster.Character:FindFirstChild("UpperTorso") :: BasePart?
 	local anchor: BasePart = torso or root
-	if torso then
-		local k = torso.Size / Vector3.new(2, 1.6, 1) -- монстр выше/тоньше обычного R15
+	local bodyTorso = body:FindFirstChild("UpperTorso") :: BasePart?
+	if torso and bodyTorso then
+		-- оси тела: голова → влево, спина → вверх (живот на плечах монстра)
 		local across = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, 0, -1), Vector3.new(-1, 0, 0), Vector3.new(0, 1, 0))
-		body:PivotTo(torso.CFrame * CFrame.new(Config.CARRY_BODY_OFFSET * k) * CFrame.Angles(0, 0, math.rad(Config.CARRY_BODY_TILT)) * across)
+		-- точка на плечах, где должна лежать талия трупа (низ UpperTorso)
+		local waist = torso.CFrame * CFrame.new(Config.CARRY_BODY_OFFSET) * CFrame.Angles(0, 0, math.rad(Config.CARRY_BODY_TILT)) * across
+		-- ставим по UpperTorso трупа, а не по его корню: корень у мёртвого может быть сдвинут к голове
+		local wantTorso = waist * CFrame.new(0, bodyTorso.Size.Y / 2, 0)
+		body:PivotTo(wantTorso * bodyTorso.CFrame:ToObjectSpace(body:GetPivot()))
 	else
 		body:PivotTo(root.CFrame * CFrame.new(0, 1.7, 0.4) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(90), 0, 0))
 	end
