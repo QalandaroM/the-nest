@@ -451,24 +451,37 @@ function MonsterModel.undress(character: Model)
 	end
 end
 
+-- Прячем обычного человечка: одежду, шапки, лицо, сами части тела
+local function hideHuman(d: Instance, character: Model)
+	if d:IsA("Accessory") or d:IsA("Clothing") or d:IsA("ShirtGraphic") then
+		d:Destroy()
+	elseif d:IsA("Decal") and d.Parent and d.Parent.Name == "Head" then
+		d:Destroy() -- лицо
+	elseif d:IsA("BasePart") and d.Parent == character then
+		d.Transparency = 1 -- части тела игрока (сам облик монстра лежит в папке MonsterLook)
+	end
+end
+
 function MonsterModel.dress(character: Model)
 	MonsterModel.undress(character)
 	local f = Instance.new("Folder")
 	f.Name = "MonsterLook"
 
-	-- прячем обычного человечка: одежду, шапки, лицо, сами части тела
 	for _, d in character:GetDescendants() do
-		if d:IsA("Accessory") or d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") then
-			d:Destroy()
-		elseif d:IsA("Decal") and d.Parent and d.Parent.Name == "Head" then
-			d:Destroy()
-		end
+		hideHuman(d, character)
 	end
-	for _, d in character:GetChildren() do
-		if d:IsA("BasePart") then
-			d.Transparency = 1
-		end
-	end
+	-- Roblox догружает внешность игрока позже (шапки, одежда, иногда новые части тела) —
+	-- прячем и всё, что появится потом, пока на персонаже облик монстра
+	local conn = character.DescendantAdded:Connect(function(d)
+		task.defer(function()
+			if d.Parent then
+				hideHuman(d, character)
+			end
+		end)
+	end)
+	f.Destroying:Once(function()
+		conn:Disconnect()
+	end)
 
 	local function part(name: string): BasePart?
 		return character:FindFirstChild(name) :: BasePart?

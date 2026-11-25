@@ -1333,6 +1333,46 @@ def carry_pose(p):
     return rot, loc
 
 
+def idle_pose(p):
+    # стоит сгорбившись: тяжело дышит, руки покачиваются, голова иногда резко дёргается набок
+    s = math.sin(p)
+    twitch = math.sin(p * 2) ** 16  # два коротких рывка за цикл
+    rot = {
+        "UpperTorso": (-14 + 2.5 * s, 0, 0),
+        "Head": (8 + 3 * math.sin(p + 1), 0, 14 * twitch),
+        "LeftUpperArm": (8 + 3 * math.sin(p + 0.5), 0, 4),
+        "RightUpperArm": (8 + 3 * math.sin(p + 0.8), 0, -4),
+        "LeftLowerArm": (20 + 3 * s, 0, 0),
+        "RightLowerArm": (20 + 3 * s, 0, 0),
+        "LeftHand": (15, 0, 0),
+        "RightHand": (15, 0, 0),
+        "LeftUpperLeg": (6, 0, 0),
+        "RightUpperLeg": (6, 0, 0),
+        "LeftLowerLeg": (-10, 0, 0),
+        "RightLowerLeg": (-10, 0, 0),
+    }
+    return rot, {"LowerTorso": (0, -0.06 + 0.03 * s, 0)}
+
+
+def carry_idle_pose(p):
+    # стоит с телом на плечах и тяжело дышит
+    s = math.sin(p)
+    rot = {
+        "RightUpperArm": (90 + 2 * s, 0, 10),
+        "RightLowerArm": (120, 0, 0),
+        "RightHand": (30, 0, 0),
+        "LeftUpperArm": (12 + 3 * math.sin(p + 0.6), 0, 6),
+        "LeftLowerArm": (18, 0, 0),
+        "UpperTorso": (-26 + 2 * s, 0, -8),
+        "Head": (14 + 2 * math.sin(p + 1), 0, 6),
+        "LeftUpperLeg": (6, 0, 0),
+        "RightUpperLeg": (6, 0, 0),
+        "LeftLowerLeg": (-10, 0, 0),
+        "RightLowerLeg": (-10, 0, 0),
+    }
+    return rot, {"LowerTorso": (0, -0.22 + 0.03 * s, 0)}
+
+
 def scream_keys():
     keys = [
         (0, {"UpperTorso": (-12, 0, 0)}, {}),
@@ -1362,6 +1402,8 @@ def scream_keys():
 
 
 ANIMS = {
+    "Idle": cycle(60, 2, idle_pose),
+    "CarryIdle": cycle(60, 2, carry_idle_pose),
     "Run": cycle(20, 2, run_pose),
     "Carry": cycle(32, 2, carry_pose),
     "Scream": scream_keys(),
@@ -1393,6 +1435,47 @@ ANIMS = {
          {"LowerTorso": (0, -0.25, -0.65)}),
         (24, {"UpperTorso": (-12, 0, 0)}, {}),
     ],
+    # подъём тела (1 сек): присел и тянется вниз → схватил → рывком закинул на плечи → поза переноски.
+    # Тайминг совпадает с игрой (Cocoons): тело лежит на полу Config.PICKUP_GRAB_TIME = 0.45 сек
+    # (кадры 0–13), потом за Config.PICKUP_LIFT_TIME = 0.5 сек летит на плечи (кадры 14–28)
+    "Pickup": [
+        (0, {"UpperTorso": (-12, 0, 0)}, {}),
+        # присел и тянется к телу на полу
+        (9, {"UpperTorso": (-58, 0, 0), "Head": (28, 0, 0),
+             "LeftUpperArm": (42, 0, 8), "RightUpperArm": (42, 0, -8), "LeftLowerArm": (18, 0, 0), "RightLowerArm": (18, 0, 0),
+             "LeftUpperLeg": (58, 0, 0), "RightUpperLeg": (58, 0, 0), "LeftLowerLeg": (-92, 0, 0), "RightLowerLeg": (-92, 0, 0),
+             "LeftFoot": (32, 0, 0), "RightFoot": (32, 0, 0)},
+         {"LowerTorso": (0, -0.75, 0.25)}),
+        # схватил: когти сжимаются, лапы чуть внутрь
+        (13, {"UpperTorso": (-60, 0, 0), "Head": (26, 0, 0),
+              "LeftUpperArm": (36, 0, -14), "RightUpperArm": (36, 0, 14), "LeftLowerArm": (32, 0, 0), "RightLowerArm": (32, 0, 0),
+              "LeftHand": (45, 0, 0), "RightHand": (45, 0, 0),
+              "LeftUpperLeg": (60, 0, 0), "RightUpperLeg": (60, 0, 0), "LeftLowerLeg": (-95, 0, 0), "RightLowerLeg": (-95, 0, 0),
+              "LeftFoot": (34, 0, 0), "RightFoot": (34, 0, 0)},
+         {"LowerTorso": (0, -0.78, 0.25)}),
+        # рывок вверх: разгибается, держит тело перед грудью
+        (20, {"UpperTorso": (-14, 0, 0), "Head": (14, 0, 0),
+              "LeftUpperArm": (95, 0, -14), "RightUpperArm": (95, 0, 14), "LeftLowerArm": (80, 0, 0), "RightLowerArm": (80, 0, 0),
+              "LeftHand": (35, 0, 0), "RightHand": (35, 0, 0),
+              "LeftUpperLeg": (24, 0, 0), "RightUpperLeg": (24, 0, 0), "LeftLowerLeg": (-40, 0, 0), "RightLowerLeg": (-40, 0, 0)},
+         {"LowerTorso": (0, -0.2, 0.05)}),
+        # закидывает тело через голову на плечи
+        (24, {"UpperTorso": (-6, 0, 0), "Head": (6, 0, 0),
+              "LeftUpperArm": (150, 0, -20), "RightUpperArm": (150, 0, 20), "LeftLowerArm": (75, 0, 0), "RightLowerArm": (75, 0, 0),
+              "LeftHand": (30, 0, 0), "RightHand": (30, 0, 0),
+              "LeftUpperLeg": (14, 0, 0), "RightUpperLeg": (14, 0, 0), "LeftLowerLeg": (-24, 0, 0), "RightLowerLeg": (-24, 0, 0)},
+         {"LowerTorso": (0, -0.12, 0.05)}),
+        # тело легло на плечи: присел под весом и перешёл в позу переноски
+        (28, {"UpperTorso": (-30, 0, -8), "Head": (16, 0, 6),
+              "RightUpperArm": (90, 0, 10), "RightLowerArm": (120, 0, 0), "RightHand": (30, 0, 0),
+              "LeftUpperArm": (14, 0, 6), "LeftLowerArm": (18, 0, 0),
+              "LeftUpperLeg": (14, 0, 0), "RightUpperLeg": (14, 0, 0), "LeftLowerLeg": (-24, 0, 0), "RightLowerLeg": (-24, 0, 0)},
+         {"LowerTorso": (0, -0.32, 0)}),
+        (32, {"UpperTorso": (-26, 0, -8), "Head": (14, 0, 6),
+              "RightUpperArm": (90, 0, 10), "RightLowerArm": (120, 0, 0), "RightHand": (30, 0, 0),
+              "LeftUpperArm": (12, 0, 6), "LeftLowerArm": (18, 0, 0)},
+         {"LowerTorso": (0, -0.22, 0)}),
+    ],
 }
 
 
@@ -1416,6 +1499,56 @@ def make_actions(rig):
     rig.animation_data.action = None
     set_pose(rig, None)
     return actions
+
+
+ANIM_DATA_FILE = os.path.join(ROOT, "src", "shared", "MonsterAnimData.luau")
+LOOPED = {"Idle", "CarryIdle", "Run", "Carry"}
+
+
+def write_anim_data(rig, actions):
+    # Позы всех анимаций по кадрам → src/shared/MonsterAnimData.luau.
+    # Игра двигает суставы монстра сама (MonsterAnimator.client), загружать анимации в Roblox не нужно.
+    # Для каждого сустава — поворот относительно покоя (кватернион x, y, z, w) в осях Роблокса:
+    # это ровно Motor6D.Transform. В конце кадра — сдвиг LowerTorso (x, y, z).
+    scene = bpy.context.scene
+    to_bl = Matrix(((1, 0, 0), (0, 0, -1), (0, 1, 0)))  # оси Роблокса → оси Blender
+    to_rb = to_bl.inverted()
+    joints = [n for n in JOINTS if n != "HumanoidRootPart"]
+    lines = [
+        "-- СГЕНЕРИРОВАНО скриптом blender/monster.py — не правь руками, запусти скрипт заново.",
+        "-- Анимации монстра по кадрам (30 в секунду). В каждом кадре для каждого сустава из joints",
+        "-- 4 числа — поворот (кватернион x, y, z, w) для Motor6D.Transform, в конце 3 числа — сдвиг LowerTorso.",
+        "return {",
+        f"\tfps = {FPS},",
+        "\tjoints = { " + ", ".join(f'"{j}"' for j in joints) + " },",
+        "\tanims = {",
+    ]
+    for name, act in actions.items():
+        rig.animation_data.action = act
+        if hasattr(rig.animation_data, "action_slot") and act.slots:
+            rig.animation_data.action_slot = act.slots[0]
+        f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
+        lines.append(f"\t\t{name} = {{ loop = {'true' if name in LOOPED else 'false'}, frames = {{")
+        for f in range(f0, f1 + 1):
+            scene.frame_set(f)
+            nums = []
+            for j in joints:
+                pb = rig.pose.bones[j]
+                rest = pb.bone.matrix_local.to_3x3()
+                rot = to_rb @ (rest @ pb.matrix_basis.to_3x3() @ rest.inverted()) @ to_bl
+                q = rot.to_quaternion()
+                nums += [q.x, q.y, q.z, q.w]
+            pb = rig.pose.bones["LowerTorso"]
+            t = to_rb @ (pb.bone.matrix_local.to_3x3() @ pb.matrix_basis.translation)
+            nums += [t.x, t.y, t.z]
+            lines.append("\t\t\t{ " + ", ".join(f"{v:.4f}" for v in nums) + " },")
+        lines.append("\t\t} },")
+    lines += ["\t},", "}", ""]
+    with open(ANIM_DATA_FILE, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(lines))
+    rig.animation_data.action = None
+    set_pose(rig, None)
+    print(f"  позы анимаций записаны: {os.path.relpath(ANIM_DATA_FILE, ROOT)}")
 
 
 def export_anims(rig, actions):
@@ -1488,6 +1621,7 @@ def main():
     rig = build_rig(objs)
     render_pose(rig, os.path.join(OUT, "monster_pose.png"))
     actions = make_actions(rig)
+    write_anim_data(rig, actions)
     if mode == "export":
         export_anims(rig, actions)
         rig.animation_data.action = None

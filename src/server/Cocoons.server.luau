@@ -15,10 +15,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Wounds = require(script.Parent.Wounds)
+local MonsterAnims = require(script.Parent.MonsterAnims)
 
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local feedback = remotes:WaitForChild("HitFeedback") :: RemoteEvent
@@ -69,7 +71,8 @@ end
 ---------------------------------------------------------------------
 -- Тело
 ---------------------------------------------------------------------
-type Carry = { body: Model, weld: WeldConstraint }
+-- lifting = true, пока монстр поднимает тело с пола (weld ещё нет)
+type Carry = { body: Model, weld: WeldConstraint?, lifting: boolean? }
 local carrying: { [Player]: Carry } = {}
 -- когда монстр последний раз положил тело: G срабатывает и у подсказки, и через DropBody —
 -- без этой паузы второй сигнал мог бы сразу поднять тело обратно
@@ -96,7 +99,12 @@ end
 local function updateCarrySpeed(monster: Player)
 	local humanoid = alive(monster)
 	if humanoid then
-		humanoid.WalkSpeed = Config.WALK_SPEED * (carrying[monster] and Config.CARRY_SPEED_MULT or 1)
+		local c = carrying[monster]
+		if c and c.lifting then
+			humanoid.WalkSpeed = 0 -- поднимает тело — стоит на месте
+		else
+			humanoid.WalkSpeed = Config.WALK_SPEED * (c and Config.CARRY_SPEED_MULT or 1)
+		end
 	end
 end
 
@@ -108,7 +116,9 @@ local function dropBody(monster: Player)
 	carrying[monster] = nil
 	droppedAt[monster] = os.clock()
 	monster:SetAttribute("CarryingBody", nil)
-	c.weld:Destroy()
+	if c.weld then
+		c.weld:Destroy()
+	end
 	if c.body.Parent then
 		setBodyPhysics(c.body, false)
 		local _, root = alive(monster)
@@ -121,6 +131,58 @@ local function dropBody(monster: Player)
 			prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 			prompt.HoldDuration = 0.8
 		end
+	end
+	updateCarrySpeed(monster)
+end
+
+-- Где тело должно лежать на плечах: поперёк плеч, животом вниз, голова свисает влево
+-- (как в анимации Carry). Возвращает CFrame для body:PivotTo
+local function shoulderPivot(monster: Player, body: Model): CFrame?
+	local character = monster.Character
+	local torso = character and character:FindFirstChild("UpperTorso") :: BasePart?
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local bodyTorso = body:FindFirstChild("UpperTorso") :: BasePart?
+	if torso and bodyTorso then
+		-- оси тела: голова → влево, спина → вверх (живот на плечах монстра)
+		local across = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, 0, -1), Vector3.new(-1, 0, 0), Vector3.new(0, 1, 0))
+		-- точка на плечах, где должна лежать талия трупа (низ UpperTorso)
+		local waist = torso.CFrame * CFrame.new(Config.CARRY_BODY_OFFSET) * CFrame.Angles(0, 0, math.rad(Config.CARRY_BODY_TILT)) * across
+		-- ставим по UpperTorso трупа, а не по его корню: корень у мёртвого может быть сдвинут к голове
+		local wantTorso = waist * CFrame.new(0, bodyTorso.Size.Y / 2, 0)
+		return wantTorso * bodyTorso.CFrame:ToObjectSpace(body:GetPivot())
+	elseif root then
+		return root.CFrame * CFrame.new(0, 1.7, 0.4) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(90), 0, 0)
+	end
+	return nil
+end
+
+-- Тело долетело до плеч: кладём и привариваем к UpperTorso (тело качается вместе с плечами)
+local function attachBody(monster: Player, c: Carry)
+	local body = c.body
+	local _, root = alive(monster)
+	local torso = monster.Character and monster.Character:FindFirstChild("UpperTorso") :: BasePart?
+	local anchor = torso or root
+	local bodyRoot = body:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local target = shoulderPivot(monster, body)
+	if not anchor or not bodyRoot or not target then
+		dropBody(monster)
+		return
+	end
+	setBodyPhysics(body, true)
+	body:PivotTo(target)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = anchor
+	weld.Part1 = bodyRoot
+	weld.Parent = bodyRoot
+	c.weld = weld
+	c.lifting = nil
+	local prompt = body:FindFirstChild("BodyPrompt", true) :: ProximityPrompt?
+	if prompt then
+		-- бросать на G: на E в это время «Спрятать тело» у тайника (Roblox показывает одну подсказку на клавишу)
+		prompt.ActionText = "Положить тело"
+		prompt.KeyboardKeyCode = Enum.KeyCode.G
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+		prompt.HoldDuration = 0
 	end
 	updateCarrySpeed(monster)
 end
@@ -140,39 +202,45 @@ local function pickUp(monster: Player, body: Model)
 	if not root or not bodyRoot then
 		return
 	end
-	setBodyPhysics(body, true)
-	-- кладём поперёк плеч, животом вниз, голова свисает влево (как в анимации Carry).
-	-- Крепим к UpperTorso: тело качается вместе с плечами монстра
-	local torso = monster.Character and monster.Character:FindFirstChild("UpperTorso") :: BasePart?
-	local anchor: BasePart = torso or root
-	local bodyTorso = body:FindFirstChild("UpperTorso") :: BasePart?
-	if torso and bodyTorso then
-		-- оси тела: голова → влево, спина → вверх (живот на плечах монстра)
-		local across = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, 0, -1), Vector3.new(-1, 0, 0), Vector3.new(0, 1, 0))
-		-- точка на плечах, где должна лежать талия трупа (низ UpperTorso)
-		local waist = torso.CFrame * CFrame.new(Config.CARRY_BODY_OFFSET) * CFrame.Angles(0, 0, math.rad(Config.CARRY_BODY_TILT)) * across
-		-- ставим по UpperTorso трупа, а не по его корню: корень у мёртвого может быть сдвинут к голове
-		local wantTorso = waist * CFrame.new(0, bodyTorso.Size.Y / 2, 0)
-		body:PivotTo(wantTorso * bodyTorso.CFrame:ToObjectSpace(body:GetPivot()))
-	else
-		body:PivotTo(root.CFrame * CFrame.new(0, 1.7, 0.4) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(90), 0, 0))
-	end
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = anchor
-	weld.Part1 = bodyRoot
-	weld.Parent = bodyRoot
-	carrying[monster] = { body = body, weld = weld }
+	-- тело занято сразу: пока монстр его поднимает, никто другой не возьмёт
+	local c: Carry = { body = body, lifting = true }
+	carrying[monster] = c
 	monster:SetAttribute("CarryingBody", true)
+	updateCarrySpeed(monster) -- стоит на месте, пока поднимает
 	Wounds.playAt(root, Sounds.BodyPickup, 0.7)
 	local prompt = body:FindFirstChild("BodyPrompt", true) :: ProximityPrompt?
 	if prompt then
-		-- бросать на G: на E в это время «Спрятать тело» у тайника (Roblox показывает одну подсказку на клавишу)
-		prompt.ActionText = "Положить тело"
-		prompt.KeyboardKeyCode = Enum.KeyCode.G
-		prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
-		prompt.HoldDuration = 0
+		prompt.Enabled = false
 	end
-	updateCarrySpeed(monster)
+	-- анимация: наклонился, схватил, закинул на плечи (если её ID нет в Config — без анимации)
+	MonsterAnims.pickup(monster.Character :: Model)
+	task.spawn(function()
+		-- пока монстр наклоняется и хватает, тело лежит на полу
+		task.wait(Config.PICKUP_GRAB_TIME)
+		-- потом плавно летит по дуге с пола на плечи (плечи двигаются — цель считаем каждый кадр)
+		local start = body:GetPivot()
+		local t0 = os.clock()
+		while carrying[monster] == c and body.Parent do
+			local target = shoulderPivot(monster, body)
+			if not target then
+				break
+			end
+			local a = math.min(1, (os.clock() - t0) / Config.PICKUP_LIFT_TIME)
+			local e = a * a * (3 - 2 * a) -- медленно → быстро → медленно
+			body:PivotTo(start:Lerp(target, e) + Vector3.new(0, math.sin(e * math.pi) * 1.2, 0))
+			if a >= 1 then
+				break
+			end
+			RunService.Heartbeat:Wait()
+		end
+		if prompt then
+			prompt.Enabled = true
+		end
+		-- монстр не умер и не бросил тело (G) за это время — кладём на плечи насовсем
+		if carrying[monster] == c and body.Parent then
+			attachBody(monster, c)
+		end
+	end)
 end
 
 -- Персонаж убитого → тело
@@ -466,8 +534,8 @@ end
 
 local function hideBody(monster: Player, hideout: BasePart)
 	local c = carrying[monster]
-	if not c or monster:GetAttribute("Role") ~= "Monster" then
-		return
+	if not c or c.lifting or monster:GetAttribute("Role") ~= "Monster" then
+		return -- нечего прятать или тело ещё не легло на плечи
 	end
 	if cocoonAt(hideout) then
 		notice(monster, "Здесь уже есть кокон")
@@ -478,7 +546,9 @@ local function hideBody(monster: Player, hideout: BasePart)
 	local hits = body:GetAttribute("Hits") or 1
 	carrying[monster] = nil
 	monster:SetAttribute("CarryingBody", nil)
-	c.weld:Destroy()
+	if c.weld then
+		c.weld:Destroy()
+	end
 	body:Destroy()
 	updateCarrySpeed(monster)
 	local model = buildCocoon(hideout, victimId, hits)

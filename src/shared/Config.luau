@@ -141,15 +141,12 @@ local Config = {
 	MONSTER_EYE_TRANSPARENCY = 0.2, -- 0 = ярче, 0.5 = совсем тускло
 	MONSTER_EYE_LIGHT_BRIGHTNESS = 0.5, -- красный отсвет вокруг глаз
 	MONSTER_EYE_LIGHT_RANGE = 4, -- радиус отсвета (studs)
-	-- Анимации монстра (blender/out/monster_anim_*.fbx): загрузи в Roblox и впиши ID.
-	-- Пусто ("") — играет стандартная анимация Roblox.
-	MONSTER_ANIMS = {
-		Run = "", -- бег и ходьба
-		Carry = "", -- ходьба с телом на плече
-		Attack = "", -- удар правой лапой
-		Attack2 = "", -- выпад двумя лапами и укус
-		Scream = "", -- скример
-	},
+	-- Свои анимации монстра (MonsterAnimator.client, позы из Shared.MonsterAnimData — загружать в Roblox не нужно)
+	MONSTER_RUN_ANIM_SPEED = 16, -- при такой скорости (studs/сек) шаги анимации бега идут с обычной частотой
+	MONSTER_ANIM_BLEND = 0.15, -- сек: плавный переход между «стоит», «идёт» и «несёт тело»
+	-- Подъём тела (Cocoons): монстр стоит на месте, пока поднимает тело
+	PICKUP_GRAB_TIME = 0.45, -- сек: наклонился и хватает — тело ещё лежит на полу
+	PICKUP_LIFT_TIME = 0.5, -- сек: тело по дуге летит с пола на плечи
 	-- Тело на плечах монстра (Cocoons): где лежит талия трупа от центра UpperTorso монстра
 	-- (studs: X вправо, Y вверх, Z назад — чуть назад, чтобы тело легло на спину за головой)
 	CARRY_BODY_OFFSET = Vector3.new(0, 1.4, 0.7),

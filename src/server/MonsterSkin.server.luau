@@ -8,13 +8,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MonsterModel = require(ReplicatedStorage.Shared.MonsterModel)
 local MonsterAnims = require(script.Parent.MonsterAnims)
 
-MonsterAnims.start() -- анимации монстра: бег, удары, скример, переноска тела
+MonsterAnims.start() -- скример монстра; сами позы анимаций играет клиент (MonsterAnimator)
 
 local busy: { [Model]: boolean } = {}
 
-local function apply(player: Player)
+-- force = надеть заново, даже если облик уже есть (Roblox догрузил внешность и мог заменить части тела —
+-- тогда меши монстра, приваренные к старым частям, пропали бы)
+local function apply(player: Player, force: boolean?)
 	local character = player.Character
-	if not character or busy[character] or character:FindFirstChild("MonsterLook") then
+	if not character or busy[character] or (not force and character:FindFirstChild("MonsterLook")) then
 		return
 	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -43,7 +45,6 @@ local function apply(player: Player)
 	end
 	if character.Parent and player:GetAttribute("Role") == "Monster" then
 		MonsterModel.dress(character)
-		MonsterAnims.refresh(player) -- свой бег вместо стандартного (если ID есть в Config)
 	end
 	busy[character] = nil
 end
@@ -51,7 +52,7 @@ end
 local function onPlayer(player: Player)
 	player.CharacterAppearanceLoaded:Connect(function()
 		if player:GetAttribute("Role") == "Monster" then
-			apply(player)
+			apply(player, true)
 		end
 	end)
 	player.CharacterAdded:Connect(function()
