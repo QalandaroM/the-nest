@@ -202,7 +202,8 @@ local function swing(monster: Player, aim: Vector3)
 		return
 	end
 	-- направление: только вперёд от монстра (за спину не бьём)
-	if typeof(aim) ~= "Vector3" or aim.Magnitude < 0.5 or aim.Magnitude > 1.5 then
+	-- (aim.Magnitude ~= aim.Magnitude — это NaN: такое число не проходит ни одно сравнение)
+	if typeof(aim) ~= "Vector3" or aim.Magnitude ~= aim.Magnitude or aim.Magnitude < 0.5 or aim.Magnitude > 1.5 then
 		return
 	end
 	aim = aim.Unit

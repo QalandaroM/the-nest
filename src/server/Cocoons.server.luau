@@ -103,7 +103,12 @@ local function updateCarrySpeed(monster: Player)
 		if c and c.lifting then
 			humanoid.WalkSpeed = 0 -- поднимает тело — стоит на месте
 		else
-			humanoid.WalkSpeed = Config.WALK_SPEED * (c and Config.CARRY_SPEED_MULT or 1)
+			local speed = Config.WALK_SPEED * (c and Config.CARRY_SPEED_MULT or 1)
+			-- обожжён талисманом (Talisman.server) — пока не прошло, еле идёт
+			if workspace:GetServerTimeNow() < (monster:GetAttribute("StunnedUntil") or 0) then
+				speed = math.min(speed, Config.TALISMAN_STUN_SPEED)
+			end
+			humanoid.WalkSpeed = speed
 		end
 	end
 end
@@ -327,13 +332,23 @@ local function playerById(id: number): Player?
 	return nil
 end
 
+-- Живой кокон в этом тайнике (пустая оболочка от разорванного или вылупившегося не считается)
 local function cocoonAt(hideout: BasePart): Model?
 	for _, c in cocoons:GetChildren() do
-		if c:GetAttribute("Hideout") == hideout.Name then
+		if c:GetAttribute("Hideout") == hideout.Name and not c:GetAttribute("State") then
 			return c :: Model
 		end
 	end
 	return nil
+end
+
+-- Убрать пустую оболочку из тайника, чтобы новый кокон не вырос прямо в ней
+local function clearShells(hideout: BasePart)
+	for _, c in cocoons:GetChildren() do
+		if c:GetAttribute("Hideout") == hideout.Name and c:GetAttribute("State") then
+			c:Destroy()
+		end
+	end
 end
 
 local function blob(parent: Instance, size: Vector3, cf: CFrame, color: Color3, name: string?): Part
@@ -511,6 +526,12 @@ local function finishCocoon(model: Model, how: string)
 	end
 	model.Name = how == "Hatched" and "HatchedCocoon" or "TornCocoon"
 	model:SetAttribute("State", how)
+	-- тайник снова свободен: монстр может спрятать сюда новое тело
+	local folder = workspace:FindFirstChild("Hideouts")
+	local hideout = folder and folder:FindFirstChild(model:GetAttribute("Hideout") or "")
+	if hideout then
+		hideout:SetAttribute("Occupied", nil)
+	end
 
 	local victim = playerById(model:GetAttribute("VictimId") or 0)
 	if victim then
@@ -551,6 +572,7 @@ local function hideBody(monster: Player, hideout: BasePart)
 	end
 	body:Destroy()
 	updateCarrySpeed(monster)
+	clearShells(hideout)
 	local model = buildCocoon(hideout, victimId, hits)
 	hideout:SetAttribute("Occupied", true)
 	local victim = playerById(victimId)

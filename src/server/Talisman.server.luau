@@ -546,11 +546,19 @@ local function giveTalisman(player: Player)
 
 		-- обожжённый монстр еле идёт
 		if mHumanoid.Health > 0 then
-			local before = mHumanoid.WalkSpeed
-			mHumanoid.WalkSpeed = math.min(before, Config.TALISMAN_STUN_SPEED)
+			-- StunnedUntil читает и Cocoons: если монстр поднимет/положит тело, ожог не слетит раньше времени
+			local stunEnd = workspace:GetServerTimeNow() + Config.TALISMAN_STUN_TIME
+			monster:SetAttribute("StunnedUntil", stunEnd)
+			mHumanoid.WalkSpeed = math.min(mHumanoid.WalkSpeed, Config.TALISMAN_STUN_SPEED)
 			task.delay(Config.TALISMAN_STUN_TIME, function()
-				if mHumanoid.Parent and mHumanoid.WalkSpeed == Config.TALISMAN_STUN_SPEED then
-					mHumanoid.WalkSpeed = before
+				if monster:GetAttribute("StunnedUntil") ~= stunEnd then
+					return -- обожгли ещё раз — снимет следующий таймер
+				end
+				monster:SetAttribute("StunnedUntil", nil)
+				-- возвращаем обычную скорость: с телом на плечах медленнее (0 — поднимает тело, не трогаем)
+				if mHumanoid.Parent and mHumanoid.Health > 0 and mHumanoid.WalkSpeed == Config.TALISMAN_STUN_SPEED then
+					local carry = monster:GetAttribute("CarryingBody") and Config.CARRY_SPEED_MULT or 1
+					mHumanoid.WalkSpeed = Config.WALK_SPEED * carry
 				end
 			end)
 			notice(monster, `Талисман обжёг тебя! Ещё {math.ceil(mHumanoid.Health / (mHumanoid.MaxHealth / Config.TALISMAN_HITS_TO_KILL) - 0.01)} — и конец.`)
