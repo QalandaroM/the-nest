@@ -242,6 +242,9 @@ function Wounds.hit(player: Player, info: { zone: string, side: string?, close: 
 	local range = info.close and zoneCfg.close or zoneCfg.far
 	local damage = rng:NextInteger(range[1], range[2])
 	local deep = rng:NextNumber() < (info.close and zoneCfg.deepClose or zoneCfg.deepFar)
+	if (info :: any).deep ~= nil then
+		deep = (info :: any).deep -- только тестовый вход Studio (WoundsTest) задаёт глубину сам
+	end
 	local result = { zone = info.zone, side = info.side, deep = deep, damage = damage }
 
 	player:SetAttribute("HitsTaken", (player:GetAttribute("HitsTaken") or 0) + 1)
@@ -556,5 +559,31 @@ workspace:GetAttributeChangedSignal("RoundActive"):Connect(function()
 		end
 	end
 end)
+
+---------------------------------------------------------------------
+-- Только в Studio: вход для проверки (tools/T.luau → T.hurt(), T.cure()).
+-- Ранит и лечит через те же функции, что и игра, чтобы не звать монстра.
+---------------------------------------------------------------------
+if game:GetService("RunService"):IsStudio() then
+	local test = Instance.new("BindableFunction")
+	test.Name = "WoundsTest"
+	test.Parent = game:GetService("ServerStorage")
+	test.OnInvoke = function(action: string, player: Player, zone: string?, deep: boolean?, side: string?)
+		local character = player.Character
+		if action == "hit" and character then
+			local partName = if zone == "Leg" then `{side or "Left"}UpperLeg` elseif zone == "Arm" then `{side or "Right"}UpperArm` elseif zone == "Head" then "Head" else "UpperTorso"
+			local part = character:FindFirstChild(partName) :: BasePart?
+			if part then
+				Wounds.hit(player, { zone = zone or "Torso", side = side or (if zone == "Leg" then "Left" else "Right"), close = false, part = part, deep = deep } :: any)
+			end
+		elseif action == "bandage" then
+			print("THE NEST bandage:", Wounds.bandage(player))
+		elseif action == "medkit" then
+			print("THE NEST medkit:", Wounds.medkit(player))
+		end
+		local humanoid = humanoidOf(player)
+		return `speed={humanoid and humanoid.WalkSpeed} hp={humanoid and math.floor(humanoid.Health)} shake={player:GetAttribute("ArmShake")} wounds=[{player:GetAttribute("WoundsText")}]`
+	end
+end
 
 return Wounds

@@ -166,6 +166,37 @@ function T.give(n: number?)
 	print("THE NEST give: бинты выданы")
 end
 
+-- Проверка ран без монстра (только в тесте Studio).
+-- Если выжившего нет (тест в одиночку) — первый игрок становится выжившим (получит фонарик).
+local function testSurvivor(): Player?
+	local sur = byRole("Survivor")
+	if not sur then
+		sur = Players:GetPlayers()[1]
+		if sur then
+			sur:SetAttribute("Role", "Survivor")
+		end
+	end
+	return sur
+end
+
+-- Ранить выжившего: T.hurt("Leg", true) — глубокая рана ноги, T.hurt("Arm", false) — царапина руки
+function T.hurt(zone: string?, deep: boolean?, side: string?)
+	local sur = testSurvivor()
+	local test = game.ServerStorage:FindFirstChild("WoundsTest")
+	if sur and test then
+		print(`THE NEST hurt {zone or "Leg"} deep={deep}:`, test:Invoke("hit", sur, zone or "Leg", deep == true, side))
+	end
+end
+
+-- Вылечить выжившего: T.cure("bandage") или T.cure("medkit") (ждёт, пока лечение закончится)
+function T.cure(how: string?)
+	local sur = testSurvivor()
+	local test = game.ServerStorage:FindFirstChild("WoundsTest")
+	if sur and test then
+		print(`THE NEST cure {how or "bandage"}:`, test:Invoke(how or "bandage", sur))
+	end
+end
+
 -- Выдать всем выжившим аптечки (по умолчанию 1)
 function T.medkit(n: number?)
 	for _, p in Players:GetPlayers() do
