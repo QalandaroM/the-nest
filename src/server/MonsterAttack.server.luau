@@ -212,8 +212,8 @@ local function swing(monster: Player, aim: Vector3)
 		aim = root.CFrame.LookVector -- клиент «целится» за спину — бьём просто вперёд
 	end
 
-	-- анимация удара: своя из Blender (Attack/Attack2), а если её ID нет в Config —
-	-- стандартный взмах (скрипт Animate играет его, когда в инструменте появляется toolanim)
+	-- анимация удара: своя из Blender (Attack/Attack2, её играет MonsterAnimator у всех игроков),
+	-- а если сказать клиентам не удалось — стандартный взмах (toolanim для скрипта Animate)
 	if not MonsterAnims.attack(character) then
 		local anim = Instance.new("StringValue")
 		anim.Name = "toolanim"

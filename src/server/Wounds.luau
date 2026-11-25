@@ -8,7 +8,11 @@
 --   ArmsLost     — 0, 1 или 2 оторванных руки
 --   EyesHurt     — 0, 1 или 2 повреждённых глаза
 --   BlindUntil   — до какого времени (workspace:GetServerTimeNow()) почти ничего не видно
---   Bandaging    — true, пока перевязывается
+--   Bandaging    — true, пока перевязывается (бинтом или аптечкой)
+--   ArmShake     — 0 или сила дрожи фонарика в градусах (рана руки не вылечена)
+--
+-- Нога и рука: царапина хромает/дрожит, пока её не перевяжут бинтом;
+-- глубокая рана (и оторванная рука) — пока не вылечат аптечкой. Бинт на ней только останавливает кровь.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -25,7 +29,8 @@ type Wound = {
 	torn: boolean, -- рука оторвана
 	bleed: number, -- сколько HP за раз снимает кровотечение (0 = не кровоточит)
 	nextBleed: number,
-	treated: boolean, -- перевязана
+	treated: boolean, -- перевязана (бинтом или аптечкой)
+	cured: boolean, -- вылечена аптечкой: ни хромоты, ни дрожи
 	part: BasePart?, -- куда прицеплены капли крови
 }
 
@@ -112,7 +117,20 @@ local function setBloodDrip(w: Wound, on: boolean)
 	end
 end
 
--- Скорость: каждая рана на ноге замедляет; при перевязке почти стоим
+-- Рана ещё мешает: царапина — пока не перевязана, глубокая — пока не вылечена аптечкой
+local function stillHurts(w: Wound): boolean
+	if w.cured then
+		return false
+	end
+	return w.deep or w.torn or not w.treated
+end
+
+-- Рана на ноге или руке, которая ещё хромает/дрожит
+local function limbHurts(w: Wound): boolean
+	return (w.zone == "Leg" or w.zone == "Arm") and stillHurts(w)
+end
+
+-- Скорость: каждая невылеченная рана на ноге замедляет; при перевязке почти стоим
 local function updateSpeed(player: Player)
 	local humanoid = humanoidOf(player)
 	local s = states[player]
@@ -121,7 +139,7 @@ local function updateSpeed(player: Player)
 	end
 	local mult = 1
 	for _, w in s.wounds do
-		if w.zone == "Leg" then
+		if w.zone == "Leg" and stillHurts(w) then
 			mult *= w.deep and Config.LEG_DEEP_SLOW or Config.LEG_SCRATCH_SLOW
 		end
 	end
@@ -137,6 +155,7 @@ local function publish(player: Player)
 	local s = states[player]
 	local lines = {}
 	local bleeding = 0
+	local shake = 0
 	if s then
 		for _, w in s.wounds do
 			local text
@@ -147,17 +166,28 @@ local function publish(player: Player)
 			else
 				text = "царапина"
 			end
-			if w.treated then
+			if w.cured then
+				text ..= ", вылечено аптечкой"
+			elseif w.treated then
 				text ..= ", перевязано"
 			elseif w.bleed > 0 then
 				text ..= ", кровотечение"
 				bleeding += 1
+			end
+			if stillHurts(w) then
+				if w.zone == "Leg" then
+					text ..= if w.deep then ", хромаешь (нужна аптечка)" else ", хромаешь"
+				elseif w.zone == "Arm" then
+					text ..= if w.deep or w.torn then ", рука дрожит (нужна аптечка)" else ", рука дрожит"
+					shake = math.max(shake, if w.deep or w.torn then Config.ARM_SHAKE_DEEP else Config.ARM_SHAKE_SCRATCH)
+				end
 			end
 			table.insert(lines, `{woundTitle(w)}: {text}`)
 		end
 	end
 	player:SetAttribute("WoundsText", table.concat(lines, "\n"))
 	player:SetAttribute("Bleeding", bleeding)
+	player:SetAttribute("ArmShake", if shake > 0 then shake else nil)
 	updateSpeed(player)
 end
 
@@ -225,6 +255,7 @@ function Wounds.hit(player: Player, info: { zone: string, side: string?, close: 
 		bleed = deep and Config.BLEED_DAMAGE or 0,
 		nextBleed = now() + rng:NextNumber(Config.BLEED_INTERVAL_MIN, Config.BLEED_INTERVAL_MAX),
 		treated = false,
+		cured = false,
 		part = info.part,
 	}
 
@@ -271,7 +302,8 @@ function Wounds.hit(player: Player, info: { zone: string, side: string?, close: 
 	return result
 end
 
--- Какую рану перевязать первой: сначала самую сильно кровоточащую, потом царапины (они лечатся)
+-- Какую рану перевязать первой: сначала самую сильно кровоточащую, потом царапины (они лечатся) —
+-- среди царапин первыми те, что на ноге или руке (снимаем хромоту и дрожь)
 local function pickWound(s: State): Wound?
 	local best: Wound? = nil
 	for _, w in s.wounds do
@@ -282,12 +314,16 @@ local function pickWound(s: State): Wound?
 	if best then
 		return best
 	end
+	local scratch: Wound? = nil
 	for _, w in s.wounds do
 		if not w.treated and not w.deep then
-			return w
+			if w.zone == "Leg" or w.zone == "Arm" then
+				return w
+			end
+			scratch = scratch or w
 		end
 	end
-	return nil
+	return scratch
 end
 
 -- Можно ли сейчас перевязаться. Возвращает причину, если нельзя
@@ -305,25 +341,13 @@ function Wounds.canBandage(player: Player): (boolean, string?)
 	return true, nil
 end
 
--- Перевязка: ждём BANDAGE_TIME (с одной рукой дольше). Удар монстра её сбивает.
--- Возвращает true, если бинт потрачен
-function Wounds.bandage(player: Player): (boolean, string?)
-	local ok, reason = Wounds.canBandage(player)
-	if not ok then
-		return false, reason
-	end
-	local s = getState(player)
-	local humanoid = humanoidOf(player)
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if not humanoid or not root then
-		return false, nil
-	end
+-- Лечение занимает время (с одной рукой дольше). Удар монстра его сбивает.
+-- Возвращает true, если долечился до конца
+local function treatOverTime(player: Player, s: State, humanoid: Humanoid, root: BasePart, time: number): boolean
 	s.bandaging = true
 	s.cancelBandage = false
 	player:SetAttribute("Bandaging", true)
 	updateSpeed(player)
-
-	local time = Config.BANDAGE_TIME
 	if (player:GetAttribute("ArmsLost") or 0) == 1 then
 		time *= Config.ONE_ARM_SLOWDOWN
 	end
@@ -342,11 +366,25 @@ function Wounds.bandage(player: Player): (boolean, string?)
 		elapsed += 0.1
 	end
 
-	local finished = elapsed >= time
 	s.bandaging = false
 	player:SetAttribute("Bandaging", nil)
-	if not finished then
-		updateSpeed(player)
+	updateSpeed(player)
+	return elapsed >= time
+end
+
+-- Перевязка бинтом: BANDAGE_TIME сек. Возвращает true, если бинт потрачен
+function Wounds.bandage(player: Player): (boolean, string?)
+	local ok, reason = Wounds.canBandage(player)
+	if not ok then
+		return false, reason
+	end
+	local s = getState(player)
+	local humanoid = humanoidOf(player)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not humanoid or not root then
+		return false, nil
+	end
+	if not treatOverTime(player, s, humanoid, root, Config.BANDAGE_TIME) then
 		return false, "Перевязку сбили"
 	end
 
@@ -365,6 +403,56 @@ function Wounds.bandage(player: Player): (boolean, string?)
 	return true, nil
 end
 
+-- Есть ли что лечить аптечкой: кровь, хромота, дрожь руки или неполное здоровье
+function Wounds.canMedkit(player: Player): (boolean, string?)
+	local s = states[player]
+	if (player:GetAttribute("ArmsLost") or 0) >= 2 then
+		return false, "Без рук не открыть аптечку"
+	end
+	if s and s.bandaging then
+		return false, "Уже лечишься"
+	end
+	local humanoid = humanoidOf(player)
+	if s then
+		for _, w in s.wounds do
+			if limbHurts(w) or (w.bleed > 0 and not w.treated) then
+				return true, nil
+			end
+		end
+	end
+	if humanoid and humanoid.Health < humanoid.MaxHealth then
+		return true, nil
+	end
+	return false, "Нечего лечить"
+end
+
+-- Аптечка: MEDKIT_TIME сек. Вылечивает всё: останавливает кровь, убирает хромоту
+-- и дрожь руки (даже от глубоких ран), возвращает MEDKIT_HEAL HP. Возвращает true, если потрачена
+function Wounds.medkit(player: Player): (boolean, string?)
+	local ok, reason = Wounds.canMedkit(player)
+	if not ok then
+		return false, reason
+	end
+	local s = getState(player)
+	local humanoid = humanoidOf(player)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not humanoid or not root then
+		return false, nil
+	end
+	if not treatOverTime(player, s, humanoid, root, Config.MEDKIT_TIME) then
+		return false, "Лечение сбили"
+	end
+	for _, w in s.wounds do
+		w.treated = true
+		w.cured = true
+		w.bleed = 0
+		setBloodDrip(w, false)
+	end
+	humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + Config.MEDKIT_HEAL)
+	publish(player)
+	return true, nil
+end
+
 -- Полный сброс (новый раунд, новый персонаж)
 function Wounds.reset(player: Player)
 	local s = states[player]
@@ -375,7 +463,7 @@ function Wounds.reset(player: Player)
 		end
 	end
 	states[player] = nil
-	for _, name in { "WoundsText", "Bleeding", "ArmsLost", "EyesHurt", "BlindUntil", "Bandaging", "HitsTaken" } do
+	for _, name in { "WoundsText", "Bleeding", "ArmsLost", "EyesHurt", "BlindUntil", "Bandaging", "HitsTaken", "ArmShake" } do
 		player:SetAttribute(name, nil)
 	end
 	local humanoid = humanoidOf(player)

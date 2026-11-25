@@ -92,7 +92,9 @@ function T.hide(name: string?)
 	if mon and test and hideout then
 		print("THE NEST pickup:", test:Invoke("pickup", mon))
 		T.tp(name)
-		task.wait(0.5)
+		-- ждём, пока монстр поднимет тело на плечи: до этого Cocoons не даёт его спрятать
+		local Config = require(game.ReplicatedStorage.Shared.Config)
+		task.wait(Config.PICKUP_GRAB_TIME + Config.PICKUP_LIFT_TIME + 0.3)
 		print("THE NEST hide:", test:Invoke("hide", mon, hideout))
 	end
 end
@@ -162,6 +164,16 @@ function T.give(n: number?)
 		end
 	end
 	print("THE NEST give: бинты выданы")
+end
+
+-- Выдать всем выжившим аптечки (по умолчанию 1)
+function T.medkit(n: number?)
+	for _, p in Players:GetPlayers() do
+		if p:GetAttribute("Role") == "Survivor" then
+			p:SetAttribute("Medkits", n or 1)
+		end
+	end
+	print("THE NEST medkit: аптечки выданы")
 end
 
 

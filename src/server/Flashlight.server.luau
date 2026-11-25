@@ -191,6 +191,43 @@ end
 CollectionService:GetInstanceAddedSignal("ChargePoint"):Connect(setupChargePoint)
 
 ---------------------------------------------------------------------
+-- Раненая рука: фонарик дрожит (атрибут ArmShake = сила дрожи в градусах, его ставит Wounds).
+-- Крутим хват инструмента (Grip) — луч дрожит у всех, и монстра труднее держать в свете (LightFreeze).
+---------------------------------------------------------------------
+local baseGrip: { [Tool]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+task.spawn(function()
+	while true do
+		task.wait(Config.ARM_SHAKE_TICK)
+		local t = os.clock()
+		for _, player in Players:GetPlayers() do
+			local character = player.Character
+			local tool = character and character:FindFirstChild(TOOL_NAME) :: Tool?
+			if not tool then
+				continue
+			end
+			local amp = player:GetAttribute("ArmShake")
+			if typeof(amp) == "number" and amp > 0 then
+				if not baseGrip[tool] then
+					baseGrip[tool] = tool.Grip
+				end
+				-- плавная дрожь (шум) + редкие резкие рывки, у каждого игрока своя
+				local seed = player.UserId % 1000
+				local ax = math.noise(t * 2.5, seed) * 2 * amp
+				local ay = math.noise(seed, t * 2.5) * 2 * amp
+				if math.random() < 0.04 then
+					ax += (math.random() - 0.5) * amp * 2
+				end
+				tool.Grip = (baseGrip[tool] :: CFrame) * CFrame.Angles(math.rad(ax), math.rad(ay), 0)
+			elseif baseGrip[tool] then
+				-- рука вылечена — фонарик снова держится ровно
+				tool.Grip = baseGrip[tool] :: CFrame
+				baseGrip[tool] = nil
+			end
+		end
+	end
+end)
+
+---------------------------------------------------------------------
 -- Расход и зарядка батареи
 ---------------------------------------------------------------------
 task.spawn(function()

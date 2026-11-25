@@ -3,6 +3,8 @@
 -- и по 1–2 в каждой закрытой локации (подвал, кладовая, кладовка, сарай).
 -- Точки — детали в Workspace.BandageSpawns с атрибутами Area (имя локации) и Closed (true/false).
 -- Подобрать (E) могут только выжившие. Использовать — инструмент «Бинт» (клик), сколько их — атрибут Bandages.
+-- Аптечки: Config.MEDKITS штук на точках, где не лёг бинт (сначала в закрытых локациях).
+-- Инструмент «Аптечка» (клик), сколько их — атрибут Medkits. Лечит всё, даже хромоту и дрожь от глубоких ран.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +14,7 @@ local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local Wounds = require(script.Parent.Wounds)
 
 local TOOL_NAME = "Бинт"
+local MEDKIT_TOOL = "Аптечка"
 local feedback = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("HitFeedback") :: RemoteEvent
 
 local rng = Random.new()
@@ -26,12 +29,12 @@ end
 ---------------------------------------------------------------------
 -- Инструмент «Бинт» в рюкзаке (один на все бинты, счётчик — атрибут Bandages)
 ---------------------------------------------------------------------
-local function findTool(player: Player): Tool?
+local function findTool(player: Player, name: string): Tool?
 	local character = player.Character
-	local tool = character and character:FindFirstChild(TOOL_NAME)
+	local tool = character and character:FindFirstChild(name)
 	if not tool then
 		local backpack = player:FindFirstChildOfClass("Backpack")
-		tool = backpack and backpack:FindFirstChild(TOOL_NAME)
+		tool = backpack and backpack:FindFirstChild(name)
 	end
 	return tool :: Tool?
 end
@@ -54,9 +57,28 @@ local function useBandage(player: Player)
 	end
 end
 
-local function updateTool(player: Player)
-	local count = player:GetAttribute("Bandages") or 0
-	local tool = findTool(player)
+local function useMedkit(player: Player)
+	if player:GetAttribute("Role") ~= "Survivor" or (player:GetAttribute("Medkits") or 0) <= 0 then
+		return
+	end
+	local ok, reason = Wounds.canMedkit(player)
+	if not ok then
+		notice(player, reason or "")
+		return
+	end
+	local used, why = Wounds.medkit(player)
+	if used then
+		player:SetAttribute("Medkits", math.max(0, (player:GetAttribute("Medkits") or 0) - 1))
+		notice(player, "Раны вылечены")
+	elseif why then
+		notice(player, why)
+	end
+end
+
+-- Есть предметы (атрибут > 0) — инструмент в рюкзаке, кончились — убираем
+local function updateItem(player: Player, attr: string, name: string, tip: string, use: (Player) -> ())
+	local count = player:GetAttribute(attr) or 0
+	local tool = findTool(player, name)
 	if count > 0 and player:GetAttribute("Role") == "Survivor" then
 		if not tool then
 			local backpack = player:FindFirstChildOfClass("Backpack")
@@ -64,12 +86,12 @@ local function updateTool(player: Player)
 				return
 			end
 			local newTool = Instance.new("Tool")
-			newTool.Name = TOOL_NAME
+			newTool.Name = name
 			newTool.RequiresHandle = false
 			newTool.CanBeDropped = false
-			newTool.ToolTip = "ЛКМ — перевязать рану"
+			newTool.ToolTip = tip
 			newTool.Activated:Connect(function()
-				useBandage(player)
+				use(player)
 			end)
 			newTool.Parent = backpack
 		end
@@ -78,13 +100,22 @@ local function updateTool(player: Player)
 	end
 end
 
+local function updateTool(player: Player)
+	updateItem(player, "Bandages", TOOL_NAME, "ЛКМ — перевязать рану", useBandage)
+	updateItem(player, "Medkits", MEDKIT_TOOL, "ЛКМ — вылечить все раны", useMedkit)
+end
+
 local function onPlayer(player: Player)
 	player:GetAttributeChangedSignal("Bandages"):Connect(function()
+		updateTool(player)
+	end)
+	player:GetAttributeChangedSignal("Medkits"):Connect(function()
 		updateTool(player)
 	end)
 	player:GetAttributeChangedSignal("Role"):Connect(function()
 		if player:GetAttribute("Role") ~= "Survivor" then
 			player:SetAttribute("Bandages", nil)
+			player:SetAttribute("Medkits", nil)
 		end
 		updateTool(player)
 	end)
@@ -178,6 +209,78 @@ local function spawnBandage(pos: Vector3)
 	model.Parent = pickups
 end
 
+---------------------------------------------------------------------
+-- Аптечка на полу: белый ящичек с красным крестом
+---------------------------------------------------------------------
+local function spawnMedkit(pos: Vector3)
+	local model = Instance.new("Model")
+	model.Name = "Medkit"
+	local cf = CFrame.new(pos) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+
+	local box = Instance.new("Part")
+	box.Name = "Box"
+	box.Size = Vector3.new(1.1, 0.5, 0.8)
+	box.CFrame = cf * CFrame.new(0, 0.25, 0)
+	box.Color = Color3.fromRGB(215, 210, 200)
+	box.Material = Enum.Material.SmoothPlastic
+	box.Anchored = true
+	box.CanCollide = false
+	box.Parent = model
+
+	-- красный крест на крышке
+	for _, size in { Vector3.new(0.45, 0.03, 0.14), Vector3.new(0.14, 0.03, 0.45) } do
+		local bar = Instance.new("Part")
+		bar.Size = size
+		bar.CFrame = cf * CFrame.new(0, 0.51, 0)
+		bar.Color = Color3.fromRGB(170, 20, 20)
+		bar.Material = Enum.Material.SmoothPlastic
+		bar.Anchored = true
+		bar.CanCollide = false
+		bar.Parent = model
+	end
+	-- ручка
+	local grip = Instance.new("Part")
+	grip.Size = Vector3.new(0.4, 0.08, 0.08)
+	grip.CFrame = cf * CFrame.new(0, 0.25, -0.44)
+	grip.Color = Color3.fromRGB(60, 60, 60)
+	grip.Anchored = true
+	grip.CanCollide = false
+	grip.Parent = model
+
+	-- чуть-чуть заметна в темноте (красноватый отсвет)
+	local glow = Instance.new("PointLight")
+	glow.Brightness = 0.25
+	glow.Range = 3.5
+	glow.Color = Color3.fromRGB(255, 200, 200)
+	glow.Parent = box
+	model.PrimaryPart = box
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Взять аптечку"
+	prompt.ObjectText = "Аптечка"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.MaxActivationDistance = 7
+	prompt.RequiresLineOfSight = false
+	prompt.HoldDuration = 0.5
+	prompt:SetAttribute("ForRole", "Survivor")
+	prompt.Parent = box
+
+	prompt.Triggered:Connect(function(player)
+		if player:GetAttribute("Role") ~= "Survivor" or not model.Parent then
+			return
+		end
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return
+		end
+		Wounds.playAt(humanoid.Parent:FindFirstChild("HumanoidRootPart") or box, Sounds.BandagePickup, 0.6)
+		model:Destroy()
+		player:SetAttribute("Medkits", (player:GetAttribute("Medkits") or 0) + 1)
+	end)
+
+	model.Parent = pickups
+end
+
 -- Перемешать список
 local function shuffle<T>(list: { T }): { T }
 	for i = #list, 2, -1 do
@@ -208,23 +311,49 @@ local function spawnAll()
 		end
 	end
 
-	local function place(point: BasePart)
+	local used: { [BasePart]: boolean } = {}
+	local function place(point: BasePart, spawn: (Vector3) -> ())
 		local pos = surfaceBelow(point.Position)
 		if pos then
-			spawnBandage(pos)
+			spawn(pos)
+			used[point] = true
 		end
 	end
 
 	shuffle(open)
 	for i = 1, math.min(Config.BANDAGES_OPEN, #open) do
-		place(open[i])
+		place(open[i], spawnBandage)
 	end
 	for _, points in closed do
 		shuffle(points)
 		local count = rng:NextInteger(Config.BANDAGES_CLOSED_MIN, Config.BANDAGES_CLOSED_MAX)
 		for i = 1, math.min(count, #points) do
-			place(points[i])
+			place(points[i], spawnBandage)
 		end
+	end
+
+	-- аптечки — на свободных точках: сначала в закрытых локациях (их надо поискать), потом в комнатах
+	local free = {}
+	for _, points in closed do
+		for _, point in points do
+			if not used[point] then
+				table.insert(free, point)
+			end
+		end
+	end
+	shuffle(free)
+	local freeOpen = {}
+	for _, point in open do
+		if not used[point] then
+			table.insert(freeOpen, point)
+		end
+	end
+	shuffle(freeOpen)
+	for _, point in freeOpen do
+		table.insert(free, point)
+	end
+	for i = 1, math.min(Config.MEDKITS, #free) do
+		place(free[i], spawnMedkit)
 	end
 end
 
@@ -232,6 +361,7 @@ workspace:GetAttributeChangedSignal("RoundActive"):Connect(function()
 	if workspace:GetAttribute("RoundActive") then
 		for _, player in Players:GetPlayers() do
 			player:SetAttribute("Bandages", nil)
+			player:SetAttribute("Medkits", nil)
 		end
 		spawnAll()
 	else

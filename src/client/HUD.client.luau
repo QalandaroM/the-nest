@@ -99,7 +99,7 @@ task.spawn(function()
 				hpText ..= `  <font color="#d04040">🩸 кровотечение</font>`
 			end
 			if player:GetAttribute("Bandaging") then
-				hpText ..= "  перевязываешься…"
+				hpText ..= "  лечишься…"
 			end
 			table.insert(lines, hpText)
 			local wounds = player:GetAttribute("WoundsText")
@@ -109,6 +109,10 @@ task.spawn(function()
 			local bandages = player:GetAttribute("Bandages") or 0
 			if bandages > 0 then
 				table.insert(lines, `Бинтов: {bandages}`)
+			end
+			local medkits = player:GetAttribute("Medkits") or 0
+			if medkits > 0 then
+				table.insert(lines, `Аптечек: {medkits}`)
 			end
 		end
 
