@@ -1,6 +1,8 @@
 -- Свои анимации монстра — без загрузки в Roblox.
 -- Позы по кадрам лежат в Shared.MonsterAnimData (их пишет blender/monster.py).
--- Каждый кадр ставим их прямо в суставы монстра (Motor6D.Transform) — поверх стандартных анимаций.
+-- Каждый кадр ставим их прямо в суставы монстра (.Transform) — поверх стандартных анимаций.
+-- Сустав бывает двух видов: старый Motor6D или новый AnimationConstraint (Avatar Joint Upgrade
+-- в Roblox). Transform у них работает одинаково, поэтому поддерживаем оба.
 -- Transform не передаётся по сети, поэтому скрипт у каждого игрока анимирует всех монстров сам.
 --   Idle / Run           — стоит / идёт
 --   CarryIdle / Carry    — то же с телом на плечах (атрибут CarryingBody у игрока)
@@ -16,6 +18,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local Data = require(Shared:WaitForChild("MonsterAnimData"))
 
 type Pose = { [string]: CFrame }
+type Joint = Motor6D | AnimationConstraint
 
 -- Числа из Blender → кадры: на каждый сустав CFrame (у LowerTorso ещё и сдвиг)
 local ANIMS: { [string]: { loop: boolean, frames: { Pose }, length: number } } = {}
@@ -65,7 +68,7 @@ local function mix(A: Pose, B: Pose, w: number): Pose
 end
 
 type State = {
-	motors: { [string]: Motor6D },
+	motors: { [string]: Joint },
 	base: string,
 	t: number,
 	prev: Pose?,
@@ -77,14 +80,26 @@ type State = {
 }
 local states: { [Model]: State } = setmetatable({}, { __mode = "k" }) :: any
 
--- Сустав части тела: у R15 Motor6D лежит внутри дочерней части (RightShoulder — в RightUpperArm)
-local function motorOf(character: Model, st: State, joint: string): Motor6D?
+-- Сустав, который двигает часть тела: Motor6D (её Part1 — эта часть)
+-- или AnimationConstraint (его Attachment1 лежит в этой части)
+local function findJoint(character: Model, part: Instance): Joint?
+	for _, d in character:GetDescendants() do
+		if d:IsA("Motor6D") and d.Part1 == part then
+			return d
+		elseif d:IsA("AnimationConstraint") and d.Attachment1 and d.Attachment1.Parent == part then
+			return d
+		end
+	end
+	return nil
+end
+
+local function motorOf(character: Model, st: State, joint: string): Joint?
 	local m = st.motors[joint]
 	if m and m.Parent then
 		return m
 	end
 	local part = character:FindFirstChild(joint)
-	m = part and part:FindFirstChildOfClass("Motor6D")
+	m = part and findJoint(character, part)
 	if m then
 		st.motors[joint] = m
 	end
