@@ -6,3 +6,5 @@
 sourcemap.json
 Packages/
 .DS_Store
+blender/out/
+.claude/skills/
